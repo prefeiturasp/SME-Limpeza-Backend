@@ -168,8 +168,19 @@ async function inserir(req, res) {
     const idOcorrencia = await dao.insert(_transaction, idOcorrenciaVariavel, observacao, acaoCorretiva, data, idFiscal, idUnidadeEscolar, prestadorServico.idPrestadorServico, idMonitoramento);
     await salvarArquivos(_transaction, idOcorrencia, arquivoList);
 
+    //OCORRÊNCIAS RETROATIVAS
     if(idOcorrencia && req.body.flagOcorrenciaRetroativa === true){
-      await dao.updateOcorrenciaRetroativa(req.body.idOcorrenciaRetroativa, idOcorrencia, idFiscal, _transaction);
+      const buscaOcorrenciasRetroativaDisponivel = await dao.buscaOcorrenciasRetroativaDisponiveis(req.body.idOcorrenciaRetroativa, _transaction);
+      if(buscaOcorrenciasRetroativaDisponivel.idOcorrenciaRetroativaOcorrencia){
+        await dao.updateOcorrenciaRetroativaOcorrencia(buscaOcorrenciasRetroativaDisponivel.idOcorrenciaRetroativaOcorrencia, idOcorrencia, idFiscal, _transaction);
+        await dao.finalizaOcorrencia(idOcorrencia, _transaction);
+      } 
+      
+      //Checa se todas as ocorrencias foram preenchidas
+      const checkagem = await dao.buscaOcorrenciasRetroativaDisponiveis(req.body.idOcorrenciaRetroativa, _transaction);
+      if(!checkagem){
+        await dao.updateOcorrenciaRetroativa(req.body.idOcorrenciaRetroativa, _transaction);
+      }
     }
 
     if (idMonitoramento) {

@@ -8,5 +8,8 @@ router.route('/comboTodasUesPorIdContrato/').post(service.comboUesPorIdContrato)
 router.route('/cadastrarOcorrenciaRetroativa/').post(service.cadastrarOcorrenciaRetroativa);
 router.route('/buscaDataOcorrenciaRetroativa/').post(service.buscaDataOcorrenciaRetroativa);
 router.route('/buscaDetalhesOcorrenciaRetroativa/').post(service.buscaDetalhesOcorrenciaRetroativa);
+router.route('/buscaOcorrenciaRetroativaAbertaUE/').post(service.buscaOcorrenciaRetroativaAbertaUE);
+router.route('/removerOcorrenciaRetroativa/').post(service.removerOcorrenciaRetroativa);
+router.route('/editarOcorrenciaRetroativa/').post(service.editarOcorrenciaRetroativa);
 
 module.exports = router;
