@@ -33,7 +33,7 @@ class OcorrenciaDao extends GenericDao {
       )
       select o.id_ocorrencia as id, o.data, ot.descricao as tipo, o.data_hora_cadastro, o.id_monitoramento, o.flag_gerar_desconto, 
         to_json(ov) as variavel, o.acao_corretiva, o.observacao, o.data_hora_final is not null as flag_encerrado, o.data_hora_final, o.flag_encerramento_automatico, o.observacao_final, 
-        exists (select 1 from ocorrencia_retroativa ocr where ocr.id_ocorrencia = o.id_ocorrencia) as flag_ocorrencia_retroativa,
+        exists (select 1 from ocorrencia_retroativa_ocorrencia oco where oco.id_ocorrencia = o.id_ocorrencia) as flag_ocorrencia_retroativa,
         json_build_object('id', ue.id_unidade_escolar, 'descricao', ue.descricao, 'codigo', ue.codigo, 'id_diretoria_regional', ue.id_diretoria_regional, 'endereco', ue.endereco || ', ' || ue.numero || ' - ' || ue.bairro, 'latitude', ue.latitude, 'longitude', ue.longitude, 'tipo', te.descricao) as unidade_escolar,
         json_build_object('id', ps.id_prestador_servico, 'razao_social', ps.razao_social, 'cnpj', ps.cnpj, 'email', ps.email) as prestador_servico,
         coalesce(to_json(oa.arquivos), '[]') as arquivos,
@@ -426,11 +426,34 @@ class OcorrenciaDao extends GenericDao {
 
   }
 
-  updateOcorrenciaRetroativa(idOcorrenciaRetroativa, idOcorrencia, idUsuario, _transaction) {
-    const sql = `update ocorrencia_retroativa set id_ocorrencia = $2, id_prestador_servico = $3, status_ocorrencia_retroativa = 'I' 
+  finalizaOcorrencia(idOcorrencia, _transaction) {
+    const sql = `update ocorrencia set data_hora_final = now(), flag_gerar_desconto = true where id_ocorrencia = $1`;
+
+    return this.query(sql, [idOcorrencia], _transaction);
+  }
+
+  updateOcorrenciaRetroativaOcorrencia(idOcorrenciaRetroativaOcorrencia, idOcorrencia, idFiscal, _transaction) {
+    const sql = `update ocorrencia_retroativa_ocorrencia set id_ocorrencia = $2, id_prestador_servico = $3, status = 'F', data_hora_alteracao = now()
+    where id_ocorrencia_retroativa_ocorrencia = $1`;
+
+    return this.query(sql, [idOcorrenciaRetroativaOcorrencia, idOcorrencia, idFiscal], _transaction);
+  }
+
+  updateOcorrenciaRetroativa(idOcorrenciaRetroativa, _transaction) {
+    const sql = `update ocorrencia_retroativa set status_ocorrencia_retroativa = 'F' 
     where id_ocorrencia_retroativa = $1`;
 
-    return this.query(sql, [idOcorrenciaRetroativa, idOcorrencia, idUsuario], _transaction);
+    return this.query(sql, [idOcorrenciaRetroativa], _transaction);
+  }
+
+  buscaOcorrenciasRetroativaDisponiveis(idOcorrenciaRetroativa, _transaction) {
+
+    const sql = `select id_ocorrencia_retroativa_ocorrencia
+    from ocorrencia_retroativa_ocorrencia 
+    where id_ocorrencia_retroativa = $1 AND status = 'A'
+    order by id_ocorrencia_retroativa_ocorrencia asc limit 1`;
+
+    return this.queryFindOne(sql, [idOcorrenciaRetroativa], _transaction);
   }
 
 }
