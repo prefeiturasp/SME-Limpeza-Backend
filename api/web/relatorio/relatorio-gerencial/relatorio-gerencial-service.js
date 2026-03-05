@@ -27,6 +27,7 @@ exports.inserir = inserir;
 exports.reverterAprovacao = reverterAprovacao;
 exports.atualizarValorBruto = atualizarValorBruto;
 exports.remover = remover;
+exports.buscaHistoricoRG = buscaHistoricoRG;
 
 exports.calcularTotal = calcularTotal;
 
@@ -483,4 +484,9 @@ async function calcularFatorDesconto(pontuacaoTotal) {
 
   return 7.2;
 
+}
+
+async function buscaHistoricoRG(req, res) {
+  let historicoStatusUEList = await dao.buscaHistoricoRG(req.params.id);
+  await ctrl.gerarRetornoOk(res, historicoStatusUEList);
 }
