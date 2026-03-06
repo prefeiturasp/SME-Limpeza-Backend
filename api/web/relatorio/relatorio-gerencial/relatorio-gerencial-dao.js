@@ -386,6 +386,20 @@ class RelatorioGerencialDao extends GenericDao {
 
   }
 
+  buscaHistoricoRG(idRelatorioGerencial) {
+    const sql = `select rgh.data_hora_acao, acao_realizada, u.nome
+                from relatorio_gerencial_historico as rgh 
+                join usuario as u ON u.id_usuario = rgh.id_usuario_acao
+                where id_relatorio_gerencial = $1 
+                order by data_hora_acao desc`;
+    return this.queryFindAll(sql, [idRelatorioGerencial]);
+  }
+
+  salvaHistoricoRG(idRelatorioGerencial, acaoRealizada, idUsuarioAcao) {
+    const sql = `insert into relatorio_gerencial_historico (id_relatorio_gerencial, acao_realizada, id_usuario_acao) values ($1, $2, $3)`;
+    return this.query(sql, [idRelatorioGerencial, acaoRealizada, idUsuarioAcao]);
+  }
+
 }
 
 module.exports = RelatorioGerencialDao;
