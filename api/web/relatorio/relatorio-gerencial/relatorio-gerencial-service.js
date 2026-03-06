@@ -150,6 +150,7 @@ async function consolidar(req, res) {
   }
 
   await dao.consolidar(req.params.id, req.userData.idUsuario, new Date());
+  await dao.salvaHistoricoRG(req.params.id, 'Consolidado', req.userData.idUsuario);
   await ctrl.gerarRetornoOk(res);
 
 }
@@ -172,6 +173,7 @@ async function desconsolidar(req, res) {
   }
 
   await dao.desconsolidar(req.params.id);
+  await dao.salvaHistoricoRG(req.params.id, 'Desconsolidado', req.userData.idUsuario);
   await ctrl.gerarRetornoOk(res);
 
 }
@@ -194,6 +196,7 @@ async function aprovar(req, res) {
   }
 
   await dao.aprovar(req.params.id, req.userData.idUsuario, new Date());
+  await dao.salvaHistoricoRG(req.params.id, 'Aprovado', req.userData.idUsuario);
   await ctrl.gerarRetornoOk(res);
 
 }
@@ -279,6 +282,7 @@ async function reverterAprovacao(req, res) {
   }
 
   await dao.reverterAprovacao(req.params.id);
+  await dao.salvaHistoricoRG(req.params.id, 'Aprovação Revertida', req.userData.idUsuario);
   await ctrl.gerarRetornoOk(res);
 
 }
