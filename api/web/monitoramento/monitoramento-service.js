@@ -17,6 +17,12 @@ exports.tabelaDatasAgendamentoManual = tabelaDatasAgendamentoManual;
 exports.inserir = inserir;
 exports.atualizar = atualizar;
 exports.remover = remover;
+exports.comboUePorIdContrato = comboUePorIdContrato;
+exports.comboPrestadorServicoPorIdContrato = comboPrestadorServicoPorIdContrato;
+exports.comboContratoPorIdPrestadorServico = comboContratoPorIdPrestadorServico;
+exports.comboUePorIdPrestadorServico = comboUePorIdPrestadorServico;
+exports.comboContratoPorIdUe = comboContratoPorIdUe;
+exports.comboPrestadorServicoPorIdUe = comboPrestadorServicoPorIdUe;
 
 async function buscar(req, res) {
 
@@ -199,4 +205,28 @@ async function notificarAgendamentoManual(idMonitoramento, prestadorServico, uni
         E-mail enviado automaticamente, favor não responder.
     `);
 
+}
+
+async function comboUePorIdContrato(req, res) {
+  return await ctrl.gerarRetornoOk(res, await dao.comboUePorIdContrato(req.body.idContrato));
+}
+
+async function comboPrestadorServicoPorIdContrato(req, res) {
+  return await ctrl.gerarRetornoOk(res, await dao.comboPrestadorServicoPorIdContrato(req.body.idContrato));
+}
+
+async function comboContratoPorIdPrestadorServico(req, res) {
+  return await ctrl.gerarRetornoOk(res, await dao.comboContratoPorIdPrestadorServico(req.body.idPrestadorServico));
+} 
+
+async function comboUePorIdPrestadorServico(req, res) {
+  return await ctrl.gerarRetornoOk(res, await dao.comboUePorIdPrestadorServico(req.body.idPrestadorServico));
+} 
+
+async function comboContratoPorIdUe(req, res) {
+  return await ctrl.gerarRetornoOk(res, await dao.comboContratoPorIdUe(req.body.idUe));
+} 
+
+async function comboPrestadorServicoPorIdUe(req, res) {
+  return await ctrl.gerarRetornoOk(res, await dao.comboPrestadorServicoPorIdUe(req.body.idUe));
 }
