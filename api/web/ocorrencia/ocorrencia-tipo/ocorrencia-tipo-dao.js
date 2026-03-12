@@ -38,9 +38,10 @@ class OcorrenciaTipoDao extends GenericDao {
                     THEN not ot.flag_apenas_monitoramento 
                     ELSE TRUE 
                 end
+                and ot.contrato_modelo = $2
             group by 1, 2, 3, 4, 5
             order by ot.contrato_modelo, ot.peso desc
-        `, [flagSomenteCadastro]);
+        `, [flagSomenteCadastro, 2]);
     }
 
     remover(_transaction, id) {
