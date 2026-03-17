@@ -9,7 +9,7 @@ exports.enviar = async (destinatario, assunto, conteudo) => {
     return await send({
         from: `${process.env.EMAIL_NAME} < ${process.env.EMAIL} >`,
         to: destinatario,
-        subject: 'kkkkkk',
+        subject: 'SISTEMA DE LIMPEZA',
         html: conteudo,
     });
 
