@@ -21,28 +21,32 @@ exports.comboUesPorIdContrato = async (req, res) => {
 
 exports.cadastrarOcorrenciaRetroativa = async (req, res) => {
 
-  var promises = [];
-  for (var i = 0; i < req.body.contratoList.length; i++) {
-    var idContrato = req.body.contratoList[i];
-    for (var j = 0; j < req.body.unidadeEscolarList.length; j++) {
-      if(req.body.unidadeEscolarList[j].idContrato === idContrato){
+  let promises = [];
+  let contratos = req.body.contratoList;
+  let unidadesEscolar = req.body.unidadeEscolarList;
+  let arrInsercao = [];
+  
+  contratos.forEach(contrato => {
+    unidadesEscolar.forEach(ue => {
+        if(ue.idContrato === contrato){
+            arrInsercao.push({
+            idContrato: contrato,
+            idUnidadeEscolar: ue.id,
+            dataInicial: req.body.dataInicial,
+            dataFinal: req.body.dataFinal,
+            motivo: req.body.motivo,
+            quantidadeOcorrencias: req.body.quantidadeOcorrencias
+          });
+        }
+    });
+  });
 
-        var dados = {
-          idContrato: idContrato,
-          idUnidadeEscolar: req.body.unidadeEscolarList[j].id,
-          dataInicial: req.body.dataInicial,
-          dataFinal: req.body.dataFinal,
-          motivo: req.body.motivo,
-          quantidadeOcorrencias: req.body.quantidadeOcorrencias
-        };
+  arrInsercao.forEach(async (dados) => {
+    promises.push(await dao.salvarOcorrenciasOcorrenciaRetroativa(await dao.cadastrarOcorrenciaRetroativa(dados, req.userData.idUsuario), req.body.quantidadeOcorrencias));
+  });
 
-        var idOcorrenciaRetroativa = await dao.cadastrarOcorrenciaRetroativa(dados, req.userData.idUsuario);
-        promises.push(await dao.salvarOcorrenciasOcorrenciaRetroativa(idOcorrenciaRetroativa, req.body.quantidadeOcorrencias));
-      }
-    }
-    const retorno = await Promise.all(promises);
-    return await ctrl.gerarRetornoOk(res, retorno);
-  }
+  const retorno = await Promise.all(promises);
+  return await ctrl.gerarRetornoOk(res, retorno);
   
 }
 
