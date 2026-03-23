@@ -48,6 +48,16 @@ class ConfiguracaoDao extends GenericDao {
 
   }
 
+  buscaManutencaoSistema() {
+    const sql = `select * from configuracao where parametro = 'MANUTENCAO_SISTEMA'`;
+    return this.queryFindOne(sql);
+  }
+
+  salvaManutencaoSistema(valor) {
+    const sql = `update configuracao set valor = $1 where parametro = 'MANUTENCAO_SISTEMA'`;
+    return this.query(sql, [valor]);
+  }
+
 }
 
 module.exports = ConfiguracaoDao;

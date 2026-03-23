@@ -12,6 +12,7 @@ app.use('/api/web/aplicativo', require('./aplicativo/aplicativo-controller'));
 
 app.group("/api/web", (app) => {
 
+    app.use('/configuracao', require('./configuracao/manutencao-sistema-controller'));
 
     app.use(checkAuthorization._usuario);
 
