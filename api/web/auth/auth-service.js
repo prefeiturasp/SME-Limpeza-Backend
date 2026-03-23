@@ -59,7 +59,7 @@ async function authenticate(req, res) {
 async function enviarEmailRecuperacao(req, res) {
 
   if (!req.body.email) {
-    return await ctrl.gerarRetornoErro(res);;
+    return await ctrl.gerarRetornoErro(res);
   }
 
   const _transaction = await ctrl.iniciarTransaction();
