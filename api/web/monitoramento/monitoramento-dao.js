@@ -75,7 +75,7 @@ class MonitoramentoDao extends GenericDao {
       join usuario_prestador_unidade_escolar upue 
         on upue.id_unidade_escolar = ue.id_unidade_escolar 
         and upue.id_usuario = ${idUsuario}` : ``}
-    where ($6::int is null or ue.id_diretoria_regional = $6::int) AND ps.flag_ativo = true AND m.flag_ativo = true AND m.data <= CURRENT_DATE
+    where ($6::int is null or ue.id_diretoria_regional = $6::int) AND ps.flag_ativo = true AND m.data <= CURRENT_DATE
     order by m.data desc, aue.descricao, p.descricao, t.descricao
     limit $7 offset $8
   `;
