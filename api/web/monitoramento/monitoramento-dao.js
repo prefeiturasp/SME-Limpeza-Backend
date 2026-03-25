@@ -32,18 +32,8 @@ class MonitoramentoDao extends GenericDao {
 
   }
 
-  datatable(
-    idUsuario,
-    ehPrestadorServico,
-    idPrestadorServico,
-    idUnidadeEscolar,
-    datasList,
-    idAmbienteUnidadeEscolar,
-    idContratoList,
-    idDiretoriaRegional,
-    length,
-    start
-  ) {
+  datatable(idUsuario, ehPrestadorServico, idPrestadorServico, idUnidadeEscolar, datasList, idAmbienteUnidadeEscolar, idContratoList, idDiretoriaRegional, length, start) {
+
     const sql = `
     with unidades as (
       select distinct id_unidade_escolar
@@ -85,7 +75,7 @@ class MonitoramentoDao extends GenericDao {
       join usuario_prestador_unidade_escolar upue 
         on upue.id_unidade_escolar = ue.id_unidade_escolar 
         and upue.id_usuario = ${idUsuario}` : ``}
-    where ($6::int is null or ue.id_diretoria_regional = $6::int)
+    where ($6::int is null or ue.id_diretoria_regional = $6::int) AND ps.flag_ativo = true AND m.data <= CURRENT_DATE
     order by m.data desc, aue.descricao, p.descricao, t.descricao
     limit $7 offset $8
   `;
