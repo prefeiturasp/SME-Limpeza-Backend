@@ -33,6 +33,7 @@ class MonitoramentoDao extends GenericDao {
   }
 
   datatable(idUsuario, ehPrestadorServico, idPrestadorServico, idUnidadeEscolar, datasList, idAmbienteUnidadeEscolar, idContratoList, idDiretoriaRegional, length, start) {
+
     const sql = `
     with unidades as (
       select distinct id_unidade_escolar
