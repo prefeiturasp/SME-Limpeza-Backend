@@ -39,14 +39,12 @@ async function buscar(req, res) {
 }
 
 async function verificaVinculoContrato(req, res) {
-
   const email = req.params.email;
   if (!email) {
     return await ctrl.gerarRetornoErro(res, 'E-mail não informado.');
   }
   const resultado = await dao.verificaVinculoContrato(email);
   await ctrl.gerarRetornoOk(res, resultado);
-  
 }
 
 async function tabela(req, res) {
@@ -172,7 +170,6 @@ async function importar(req, res) {
         );
 
       } else {
-
         //VERIFICA SE O USUÁRIO ESTÁ VINCULADO A UM CONTRATO ATIVO
         const vinculo = await dao.verificaVinculoContrato(usuario.email);
         if (vinculo.possuiVinculo) {
@@ -286,7 +283,6 @@ async function inserir(req, res) {
     ].includes(idUsuarioCargo) && !urlNomeacao) {
       return await ctrl.gerarRetornoErro(res, 'Informe o link de nomeação do fiscal.');
     }
-
     //VERIFICA SE O USUÁRIO ESTÁ VINCULADO A UM CONTRATO ATIVO
     const vinculo = await dao.verificaVinculoContrato(email);
     if (vinculo.possuiVinculo) {
