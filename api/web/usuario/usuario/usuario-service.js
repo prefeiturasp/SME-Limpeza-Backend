@@ -175,7 +175,7 @@ async function importar(req, res) {
 
         //VERIFICA SE O USUÁRIO ESTÁ VINCULADO A UM CONTRATO ATIVO
         const vinculo = await dao.verificaVinculoContrato(usuario.email);
-        if (vinculo && vinculo.possuiVinculo) {
+        if (vinculo.possuiVinculo) {
           break;
         }
 
@@ -289,7 +289,7 @@ async function inserir(req, res) {
 
     //VERIFICA SE O USUÁRIO ESTÁ VINCULADO A UM CONTRATO ATIVO
     const vinculo = await dao.verificaVinculoContrato(email);
-    if (vinculo && vinculo.possuiVinculo) {
+    if (vinculo.possuiVinculo) {
       return await ctrl.gerarRetornoErro(res, 'Este usuário já está vinculado a um contrato ativo e não pode ser inserido.');
     }
 
