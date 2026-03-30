@@ -39,16 +39,14 @@ async function buscar(req, res) {
 }
 
 async function verificaVinculoContrato(req, res) {
-  try {
-    const email = req.params.email;
-    if (!email) {
-      return await ctrl.gerarRetornoErro(res, 'E-mail não informado.');
-    }
-    const resultado = await dao.verificaVinculoContrato(email);
-    await ctrl.gerarRetornoOk(res, resultado);
-  } catch (error) {
-    await ctrl.gerarRetornoErro(res);
+
+  const email = req.params.email;
+  if (!email) {
+    return await ctrl.gerarRetornoErro(res, 'E-mail não informado.');
   }
+  const resultado = await dao.verificaVinculoContrato(email);
+  await ctrl.gerarRetornoOk(res, resultado);
+  
 }
 
 async function tabela(req, res) {
