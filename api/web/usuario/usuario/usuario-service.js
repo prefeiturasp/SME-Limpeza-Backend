@@ -174,6 +174,13 @@ async function importar(req, res) {
         );
 
       } else {
+
+        //VERIFICA SE O USUÁRIO ESTÁ VINCULADO A UM CONTRATO ATIVO
+        const vinculo = await dao.verificaVinculoContrato(usuario.email);
+        if (vinculo && vinculo.possuiVinculo) {
+          break;
+        }
+
         usuario.classeResultado = 'success';
         usuario.mensagemResultado = 'Cadastrado com sucesso.';
         const hashSenhaAleatoria = bcrypt.hashSync(Math.random().toString(36).slice(-10), 10);
@@ -282,6 +289,7 @@ async function inserir(req, res) {
       return await ctrl.gerarRetornoErro(res, 'Informe o link de nomeação do fiscal.');
     }
 
+    //VERIFICA SE O USUÁRIO ESTÁ VINCULADO A UM CONTRATO ATIVO
     const vinculo = await dao.verificaVinculoContrato(email);
     if (vinculo && vinculo.possuiVinculo) {
       return await ctrl.gerarRetornoErro(res, 'Este usuário já está vinculado a um contrato ativo e não pode ser inserido.');
