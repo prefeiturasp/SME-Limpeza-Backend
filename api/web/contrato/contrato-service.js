@@ -504,5 +504,41 @@ exports.remover = async (req, res) => {
     await ctrl.finalizarTransaction(false, _transaction);
     return await ctrl.gerarRetornoErro(res);
   }
-
+  
 }
+
+exports.exportarUesPorContrato = async (req, res) => {
+
+    const idContrato = req.body.idContrato;
+
+    if (!idContrato) {
+        return await ctrl.gerarRetornoErro(res, 'ID do contrato é obrigatório.');
+    }
+
+    try {
+
+        const resultados = await dao.exportarUesPorContrato(idContrato);
+
+        let csv = 'codigo;valor;data_inicial;data_final\n';
+
+        resultados.forEach(item => {
+            const codigo = parseInt(item.codigoue);
+            const dataIni = moment(item.dataInicial).format('DD/MM/YYYY');
+            const dataFim = moment(item.dataFinal).format('DD/MM/YYYY');
+            const valor = item.valor ? item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '0,00';
+            csv += `${codigo};${valor};${dataIni};${dataFim}\n`;
+        });
+
+        const arquivo = {
+            name: `unidades_escolares_contrato_${idContrato}`,
+            buffer: Buffer.from(csv),
+            extension: 'csv'
+        };
+
+        return await ctrl.gerarRetornoOk(res, arquivo);
+    } catch (e) {
+        console.error(e);
+        return await ctrl.gerarRetornoErro(res, 'Erro ao exportar unidades escolares.');
+    }
+
+};

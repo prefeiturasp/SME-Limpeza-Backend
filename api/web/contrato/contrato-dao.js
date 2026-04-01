@@ -211,6 +211,21 @@ class ContratoDao extends GenericDao {
 
   }
 
+  exportarUesPorContrato(id) {
+
+    const sql = `select 
+      ue.codigo as codigoUE,
+      c.valor_total as valor,
+      c.data_inicial as dataInicial,
+      c.data_final as dataFinal
+      from contrato c
+      inner join contrato_unidade_escolar cue ON cue.id_contrato = c.id_contrato
+      inner join unidade_escolar ue ON ue.id_unidade_escolar = cue.id_unidade_escolar
+      where c.id_contrato = $1`;
+
+    return this.queryFindAll(sql, [id]);
+  }
+
 }
 
 module.exports = ContratoDao;
