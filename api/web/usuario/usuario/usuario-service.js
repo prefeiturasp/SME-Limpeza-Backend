@@ -772,18 +772,20 @@ async function enviarEmailEventoFiscal(assuntoEmail, usuarioLogado, nomeFiscal, 
   }
 
   const unidadeEscolar = await unidadeEscolarDao.buscarDetalhe(idUnidadeEscolar);
+
+  let destinatarios = '';
   
   const verificacaoListaEmails = await ctrl.verificarEmailAtivo('EMAIL_NOTIFICACAO_LISTA_EMAILS');
   if (verificacaoListaEmails.valor === 1 && verificacaoListaEmails.descricao) {
 
     const emailsSME = verificacaoListaEmails.descricao.split(';');
-    const destinatarios = emailsSME.reduce((string, email) => (string + email + ';'), (unidadeEscolar.diretoriaRegional.email + ';'));
+    destinatarios = emailsSME.reduce((string, email) => (string + email + ';'), (unidadeEscolar.diretoriaRegional.email + ';'));
 
   } else {
 
     const usuariosSME = await dao.comboPorOrigem(UsuarioOrigemConstants.SME);
-    const destinatarios = usuariosSME.reduce((string, user) => (string + user.email + ';'), (unidadeEscolar.diretoriaRegional.email + ';'));
-    
+    destinatarios = usuariosSME.reduce((string, user) => (string + user.email + ';'), (unidadeEscolar.diretoriaRegional.email + ';'));
+
   }
 
   const html = `
