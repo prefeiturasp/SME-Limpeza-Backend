@@ -49,7 +49,7 @@ exports.verificarPodeFiscalizar = async (userData, idUnidadeEscolar) => {
 }
 
 exports.verificarEmailAtivo = async (parametro) => {
-    const sql = `select valor from configuracao where parametro = $1`;
+    const sql = `select valor, descricao from configuracao where parametro = $1`;
     const config = await conn.findOne(sql, [parametro]);
     return config;
 };

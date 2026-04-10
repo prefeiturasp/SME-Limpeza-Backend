@@ -87,4 +87,18 @@ exports.atualizarEmailSettings = async (req, res) => {
   }
 };
 
+exports.buscaListaEmailsParaNotificacoes = async (req, res) => {
+  const lista = await dao.buscarListaEmailsParaNotificacoes();
+  return await ctrl.gerarRetornoOk(res, lista);
+}
+
+exports.salvarEmailsParaNotificacoes = async (req, res) => {
+  const emails = req.body.emails;
+  if(!emails){
+    return await ctrl.gerarRetornoErro(res, 'Não houve emails para salvar');
+  }
+  await dao.salvarEmailsParaNotificacoes(emails);
+  return await ctrl.gerarRetornoOk(res, null, 'Lista de e-mails atualizada com sucesso.');
+}
+
 module.exports = exports;
