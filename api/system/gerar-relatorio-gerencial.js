@@ -146,6 +146,11 @@ async function buscarReajustesContrato(idContrato, data) {
 
 async function enviarEmail(unidadeEscolar) {
 
+  const config = await conn.findOne(`select valor from configuracao where parametro = 'EMAIL_NOTIFICACAO_ERRO_SISTEMA'`);
+  if (config.valor !== 1) {
+    return;
+  }
+
   const assunto = `ERRO | Relatório Gerencial - ${unidadeEscolar.descricao}`;
 
   const html = `

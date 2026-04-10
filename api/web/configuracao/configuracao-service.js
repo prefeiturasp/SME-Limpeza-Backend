@@ -46,4 +46,45 @@ exports.salvaManutencaoSistema = async (req, res) => {
   return await ctrl.gerarRetornoOk(res, retorno);
 }
 
+exports.buscarEmailSettings = async (req, res) => {
+  try {
+    const settings = await dao.buscarParametrosEmail();
+    await ctrl.gerarRetornoOk(res, settings);
+  } catch (error) {
+    console.log(error);
+    await ctrl.gerarRetornoErro(res);
+  }
+};
+
+exports.atualizarEmailSettings = async (req, res) => {
+
+  if (req.userData.origem.codigo !== 'sme') {
+    return await ctrl.gerarRetornoErro(res, 'Você não possui permissão para realizar essa operação.');
+  }
+
+  const settingsList = req.body; // Espera um array de { parametro: '...', valor: '...' }
+
+  if (!Array.isArray(settingsList)) {
+    return await ctrl.gerarRetornoErro(res, 'Formato de dados inválido. Esperado um array de configurações.');
+  }
+
+  const _transaction = await ctrl.iniciarTransaction();
+
+  try {
+    for (const setting of settingsList) {
+      if (setting.parametro && (setting.valor === '0' || setting.valor === '1')) {
+        await dao.atualizarParametro(setting.parametro, setting.valor, _transaction);
+      } else {
+        console.warn(`Configuração inválida ignorada: ${JSON.stringify(setting)}`);
+      }
+    }
+    await ctrl.finalizarTransaction(true, _transaction);
+    await ctrl.gerarRetornoOk(res, null, 'Configurações de e-mail atualizadas com sucesso.');
+  } catch (error) {
+    console.log(error);
+    await ctrl.finalizarTransaction(false, _transaction);
+    await ctrl.gerarRetornoErro(res, 'Houve um erro ao atualizar as configurações de e-mail.');
+  }
+};
+
 module.exports = exports;

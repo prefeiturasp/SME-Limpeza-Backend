@@ -765,6 +765,11 @@ async function enviarEmailAtualizacaoFiscal(usuarioLogado, idUsuarioStatusAtual,
 }
 
 async function enviarEmailEventoFiscal(assuntoEmail, usuarioLogado, nomeFiscal, emailFiscal, idUnidadeEscolar, urlNomeacao) {
+   
+  const verificacaoEmailFiscal = await ctrl.verificarEmailAtivo('EMAIL_NOTIFICACAO_FISCAL');
+  if (verificacaoEmailFiscal.valor !== 1) {
+    return;
+  }
 
   const unidadeEscolar = await unidadeEscolarDao.buscarDetalhe(idUnidadeEscolar);
   const usuariosSME = await dao.comboPorOrigem(UsuarioOrigemConstants.SME);
