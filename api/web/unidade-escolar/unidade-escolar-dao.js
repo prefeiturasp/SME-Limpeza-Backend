@@ -456,6 +456,20 @@ class UnidadeEscolarDao extends GenericDao {
               where u.id_origem_detalhe = $1`;
     return this.queryFindAll(sql, [idUnidadeEscolar]);
   }
+  
+  async buscaHistoricoStatusUePorId(idUe){
+    const sql = `select sue.descricao from unidade_escolar as ue 
+                inner join contrato_unidade_status_historico cuesh ON ue.id_unidade_escolar = cuesh.id_unidade_escolar
+                inner join status_unidade_escolar as sue ON cuesh .id_status_novo = sue.id_status_unidade_escolar
+                where cuesh.id_unidade_escolar = $1 ORDER BY cuesh.data_hora DESC LIMIT 1`;
+    return this.queryFindOne(sql, [idUe]);
+  }
+
+  async buscaStatusUePorIdStatus(idStatusUe){
+    const sql = `select descricao from status_unidade_escolar where id_status_unidade_escolar = $1`;
+    return this.queryFindOne(sql, [idStatusUe]);
+  }
+  
 }
 
 module.exports = UnidadeEscolarDao;

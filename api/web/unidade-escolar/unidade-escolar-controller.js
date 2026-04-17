@@ -14,6 +14,8 @@ router.route('/combo-detalhado-todos').get(service.carregarComboDetalhadoTodos);
 router.route('/busca-usuarios-ue').post(service.buscaUsuariosUe);
 router.route('/:id').get(service.buscar);
 
+router.route('/status-ue').post(service.buscaStatusUePorId);
+
 router.post('/importar/:idDiretoriaRegional',
     upload.single('file'),
     service.importar);
