@@ -317,6 +317,11 @@ async function agendarMonitoramento(_transaction, unidadeEscolar, planoTrabalho)
 
 async function enviarEmail(unidadeEscolar) {
 
+  const config = await conn.findOne(`select valor from configuracao where parametro = 'EMAIL_NOTIFICACAO_ERRO_SISTEMA'`);
+  if (config.valor !== 1) {
+    return;
+  }
+
   const assunto = `ERRO | Agendamento Automático - ${unidadeEscolar.descricao}`;
 
   const html = `

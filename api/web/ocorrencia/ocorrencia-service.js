@@ -429,6 +429,11 @@ async function salvarArquivos(_transaction, idOcorrencia, arquivoList) {
 
 async function enviarEmailNovaOcorrencia(idOcorrencia) {
 
+  const verificacaoEmailOcorrencia = await ctrl.verificarEmailAtivo('EMAIL_NOTIFICACAO_OCORRENCIA');
+  if (verificacaoEmailOcorrencia.valor !== 1) {
+    return;
+  }
+
   const ocorrencia = await dao.buscar(idOcorrencia);
   const diretoriaRegional = await diretoriaRegionalDao.buscar(ocorrencia.unidadeEscolar.idDiretoriaRegional);
   const emailUsuarioPrestadorServicoList = (await usuarioDao.buscarPrestadorPorUnidadeEscolar(ocorrencia.unidadeEscolar.id)).map(u => u.email);

@@ -188,6 +188,11 @@ async function remover(req, res) {
 
 async function notificarAgendamentoManual(idMonitoramento, prestadorServico, unidadeEscolar) {
 
+  const verificacaoEmailMonitoramento = await ctrl.verificarEmailAtivo('EMAIL_NOTIFICACAO_AGENDAMENTO_MANUAL');
+  if (verificacaoEmailMonitoramento.valor !== 1) {
+    return;
+  }
+
   const linkMonitoramento = process.env.FRONTEND_URL + '/monitoramento/detalhe/' + idMonitoramento;
   const emailUsuarioPrestadorServicoList = (await daoUsuario.buscarPrestadorPorUnidadeEscolar(unidadeEscolar.id)).map(u => u.email);
   const destinatario = prestadorServico.email + ',' + unidadeEscolar.diretoriaRegional.email + ',' + emailUsuarioPrestadorServicoList.join(',');

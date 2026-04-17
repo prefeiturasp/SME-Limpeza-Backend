@@ -24,6 +24,7 @@ exports.comboPorDRE = comboPorDRE;
 exports.comboTodos = comboTodos;
 exports.comboDetalhado = comboDetalhado;
 exports.carregarComboDetalhadoTodos = carregarComboDetalhadoTodos;
+exports.buscaStatusUePorId = buscaStatusUePorId;
 
 async function buscar(req, res) {
 
@@ -265,3 +266,17 @@ const verificarImportacaoEnderecoInvalido = async (endereco) => {
   return false;
 
 };
+
+async function buscaStatusUePorId(req, res) {
+
+  let idUe = req.body.idUe;
+  let idStatusUe = req.body.idStatusUe;
+
+  let staUe = await dao.buscaHistoricoStatusUePorId(idUe);
+
+  if(!staUe){
+    staUe = await dao.buscaStatusUePorIdStatus(idStatusUe);
+  }
+
+  await ctrl.gerarRetornoOk(res, staUe);
+}

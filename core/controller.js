@@ -47,3 +47,9 @@ exports.verificarPodeFiscalizar = async (userData, idUnidadeEscolar) => {
     return ehCargoFiscal && idUnidadeEscolar == userData.idOrigemDetalhe;
 
 }
+
+exports.verificarEmailAtivo = async (parametro) => {
+    const sql = `select valor, descricao from configuracao where parametro = $1`;
+    const config = await conn.findOne(sql, [parametro]);
+    return config;
+};
