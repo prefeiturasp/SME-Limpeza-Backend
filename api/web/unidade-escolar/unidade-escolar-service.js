@@ -24,6 +24,7 @@ exports.comboPorDRE = comboPorDRE;
 exports.comboTodos = comboTodos;
 exports.comboDetalhado = comboDetalhado;
 exports.carregarComboDetalhadoTodos = carregarComboDetalhadoTodos;
+exports.buscaUsuariosUe = buscaUsuariosUe;
 
 async function buscar(req, res) {
 
@@ -265,3 +266,8 @@ const verificarImportacaoEnderecoInvalido = async (endereco) => {
   return false;
 
 };
+
+async function buscaUsuariosUe(req, res){
+  const usuariosUe = await dao.buscaUsuariosUe(req.body.idUnidadeEscolar);
+  await ctrl.gerarRetornoOk(res, usuariosUe);
+}
