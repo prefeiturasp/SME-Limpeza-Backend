@@ -14,7 +14,7 @@ router.route('/comboContratoPorIdPrestadorServico').post(service.comboContratoPo
 router.route('/comboUePorIdPrestadorServico').post(service.comboUePorIdPrestadorServico);
 router.route('/comboContratoPorIdUe').post(service.comboContratoPorIdUe);
 router.route('/comboPrestadorServicoPorIdUe').post(service.comboPrestadorServicoPorIdUe);
-
+router.route('/verificaSeDataEferiado').post(service.verificaSeDataEferiado);
 
 module.exports = router;
  

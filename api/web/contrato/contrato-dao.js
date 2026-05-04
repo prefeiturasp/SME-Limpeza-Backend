@@ -13,12 +13,13 @@ class ContratoDao extends GenericDao {
         where id_contrato = $1
       )
       select c.id_contrato as id, c.descricao, c.codigo, c.data_inicial, c.data_final, c.nome_responsavel, c.email_responsavel,
-        c.id_prestador_servico, c.valor_total, c.numero_pregao, c.nome_lote, c.modelo::text, json_agg(u) as unidade_escolar_lista, c.motivo_status as motivostatuscontrato, sc.id_status_contrato as idstatuscontrato, sc.descricao as descricaostatuscontrato
+        c.id_prestador_servico, c.valor_total, c.numero_pregao, c.nome_lote, c.modelo::text, json_agg(u) as unidade_escolar_lista, c.motivo_status as motivostatuscontrato, sc.id_status_contrato as idstatuscontrato, sc.descricao as descricaostatuscontrato, c.limite_dias_excepcionais
       from contrato c
       left join unidades u using (id_contrato)
       left join status_contrato sc on sc.id_status_contrato = c.id_status_contrato
       where c.id_contrato = $1
-      group by c.id_contrato, c.descricao, c.codigo, c.data_inicial, c.data_final, c.nome_responsavel, c.email_responsavel, motivostatuscontrato, descricaostatuscontrato, idstatuscontrato
+      group by c.id_contrato, c.descricao, c.codigo, c.data_inicial, c.data_final, c.nome_responsavel, c.email_responsavel, 
+               c.id_prestador_servico, c.valor_total, c.numero_pregao, c.nome_lote, c.modelo, c.motivo_status, sc.id_status_contrato, sc.descricao, c.limite_dias_excepcionais
       order by c.descricao asc
     `, [id]);
   }
@@ -84,11 +85,11 @@ class ContratoDao extends GenericDao {
     `, []);
   }
 
-  insert(_transaction, descricao, codigo, dataInicial, dataFinal, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo) {
+  insert(_transaction, descricao, codigo, dataInicial, dataFinal, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo, limiteDiasExcepcionais) {
     return this.insertWithReturn(`
-      insert into contrato (descricao, codigo, data_inicial, data_final, nome_responsavel, email_responsavel, id_prestador_servico, valor_total, numero_pregao, nome_lote, modelo) 
-      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::int)
-    `, [descricao, codigo, dataInicial, dataFinal, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo], 'id_contrato', _transaction);
+      insert into contrato (descricao, codigo, data_inicial, data_final, nome_responsavel, email_responsavel, id_prestador_servico, valor_total, numero_pregao, nome_lote, modelo, limite_dias_excepcionais) 
+      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::int, $12::int)
+    `, [descricao, codigo, dataInicial, dataFinal, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo, limiteDiasExcepcionais], 'id_contrato', _transaction);
   }
 
   insertUnidadeEscolar(_transaction, id, idUnidadeEscolar, valor, dataInicial, dataFinal) {
@@ -126,13 +127,13 @@ class ContratoDao extends GenericDao {
     `, [idContrato, dataInicial, percentual, true], _transaction);
   }
 
-  atualizar(_transaction, id, descricao, codigo, dataInicial, dataFinal, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo) {
+  atualizar(_transaction, id, descricao, codigo, dataInicial, dataFinal, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo, diasExcepicionais) {
     return this.query(`
       update contrato set descricao = $1, codigo = $2, data_inicial = $3, data_final= $4, nome_responsavel = $5, 
         email_responsavel = $6, id_prestador_servico = $7, valor_total = $8, numero_pregao = $9, nome_lote = $10,
-        modelo = $11::int
-      where id_contrato = $12
-    `, [descricao, codigo, dataInicial, dataFinal, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo, id], _transaction);
+        modelo = $11::int, limite_dias_excepcionais = $12::int
+      where id_contrato = $13
+    `, [descricao, codigo, dataInicial, dataFinal, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo, diasExcepicionais, id], _transaction);
   }
 
   removerUnidadesEscolares(_transaction, idContrato) {

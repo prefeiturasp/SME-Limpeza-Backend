@@ -255,7 +255,7 @@ exports.carregarArquivoCargo = async (req, res) => {
 
 exports.inserir = async (req, res) => {
 
-  const { descricao, codigo, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo } = req.body;
+  const { descricao, codigo, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo, limiteDiasExcepcionais } = req.body;
 
   const unidadeEscolarLista = req.body.unidadeEscolarLista || [];
   const reajusteLista = (req.body.reajusteLista || []).filter(v => v.flagAtivo === true);
@@ -299,10 +299,11 @@ exports.inserir = async (req, res) => {
 
     }
 
-    const idContrato = await dao.insert(_transaction, descricao, codigo, dataInicial, dataFinal, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo);
+    const idContrato = await dao.insert(_transaction, descricao, codigo, dataInicial, dataFinal, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo, limiteDiasExcepcionais);
 
     for (let unidadeEscolar of unidadeEscolarLista) {
       await dao.insertUnidadeEscolar(_transaction, idContrato, unidadeEscolar.id, unidadeEscolar.valor, unidadeEscolar.dataInicial, unidadeEscolar.dataFinal);
+
       unidadeEscolarLista.map(async (ue) => await usuarioDao.insertGestorPrestadorUnidadeEscolar(idPrestadorServico, unidadeEscolar.id, _transaction));
     }
 
@@ -323,7 +324,7 @@ exports.inserir = async (req, res) => {
 
 exports.atualizar = async (req, res) => {
 
-  const { id, descricao, codigo, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo } = req.body;
+  const { id, descricao, codigo, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo, limiteDiasExcepcionais } = req.body;
 
   if (req.params.id != id) {
     return await ctrl.gerarRetornoErro(res);
@@ -384,7 +385,8 @@ exports.atualizar = async (req, res) => {
       parseFloat(valorTotal).toFixed(2),
       numeroPregao,
       nomeLote,
-      modelo
+      modelo,
+      limiteDiasExcepcionais
     );
     await dao.removerUnidadesEscolares(_transaction, id);
     await dao.removerEquipes(_transaction, id);
