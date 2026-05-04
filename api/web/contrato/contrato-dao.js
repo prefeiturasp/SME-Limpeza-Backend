@@ -227,6 +227,22 @@ class ContratoDao extends GenericDao {
     return this.queryFindAll(sql, [id]);
   }
 
+  buscaDiasExcepcionaisContrato(idContrato) {
+
+    const sql = `SELECT id_contrato_unidade_escolar_limite_dias_excepcionais, quantidade_dias_utilizados 
+      FROM contrato_unidade_escolar_limite_dias_excepcionais as cuelde
+      WHERE id_contrato = $1`;
+
+      return this.queryFindAll(sql, [idContrato]);
+  }
+
+  habilitaStatusListaDiasExcepcionais(idContratoUnidadeDiasExcepcionais){
+    const sql = `UPDATE contrato_unidade_escolar_limite_dias_excepcionais
+    SET status = true
+    WHERE id_contrato_unidade_escolar_limite_dias_excepcionais = $1`;
+    return this.query(sql, [idContratoUnidadeDiasExcepcionais]);
+  }
+
 }
 
 module.exports = ContratoDao;

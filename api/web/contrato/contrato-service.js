@@ -388,6 +388,18 @@ exports.atualizar = async (req, res) => {
       modelo,
       limiteDiasExcepcionais
     );
+
+    const buscaDiasExcepcionaisContrato = await dao.buscaDiasExcepcionaisContrato(id);
+    if (buscaDiasExcepcionaisContrato.length > 0) {
+
+      buscaDiasExcepcionaisContrato.forEach(element => {
+        if(element.quantidadeDiasUtilizados < limiteDiasExcepcionais){
+          dao.habilitaStatusListaDiasExcepcionais(element.idContratoUnidadeEscolarLimiteDiasExcepcionais);
+        }
+      });
+      
+    }
+    
     await dao.removerUnidadesEscolares(_transaction, id);
     await dao.removerEquipes(_transaction, id);
 
