@@ -159,7 +159,7 @@ async function inserir(req, res) {
           let quantidadeDiasUtilizados = 0;
           let verificaDiasExcepcionais = false;
           let idContratoUeDiaExcepcional = 0;
-          let verificaRemocao = false;
+          
           let mensagem = 'Você atingiu o limite de dias excepcionais para o mês selecionado.';
           const utimoDiaMes = moment(req.body.arrDiaExcepcional.data).clone().endOf('month').format('YYYY-MM-DD');
           const contratoAtual = await dao.buscaContratoIdUeData(req.body.arrDiaExcepcional.idUnidadeEscolar, dataAtual);
