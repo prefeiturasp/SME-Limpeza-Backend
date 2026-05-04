@@ -148,59 +148,65 @@ async function inserir(req, res) {
         const idMonitoramento = await dao.inserir(prestadorServico.id, idUnidadeEscolar, ambienteUnidadeEscolar.id, 5, turno.id, req.body.descricao, req.body.data);
         arrIdsMonitoramento.push(idMonitoramento);
         await notificarAgendamentoManual(idMonitoramento, prestadorServico, unidadeEscolar);
-           
         }
     }
 
-    if(arrIdsMonitoramento.length > 0){
-      //Veirifica Dias Excepcionais
-      if(req.body.arrDiaExcepcional.verificacao){
-        let dataAtual = moment().format('YYYY-MM-DD');
-        let quantidadeDiasUtilizados = 0;
-        let verificaDiasExcepcionais = false;
-        let idContratoUeDiaExcepcional = 0;
-        let mensagem = 'Você atingiu o limite de dias excepcionais para o mês selecionado.';
-        const utimoDiaMes = moment(req.body.arrDiaExcepcional.data).clone().endOf('month').format('YYYY-MM-DD');
-        const contratoAtual = await dao.buscaContratoIdUeData(req.body.arrDiaExcepcional.idUnidadeEscolar, dataAtual);
-          
-        if (typeof contratoAtual === 'object' && contratoAtual.limiteDiasExcepcionais > 0) {
-          const diaExcepcional = await dao.buscaDiasExcepcionais(contratoAtual.idContrato, req.body.arrDiaExcepcional.idUnidadeEscolar, req.body.arrDiaExcepcional.data);
-          if (diaExcepcional) {
-              idContratoUeDiaExcepcional = diaExcepcional.id;
-              quantidadeDiasUtilizados = diaExcepcional.quantidadeDiasUtilizados + 1;
-              if (quantidadeDiasUtilizados > contratoAtual.limiteDiasExcepcionais) {
-                verificaDiasExcepcionais = true;
-              } else {
-                const verificacao1 = await dao.comparaDataLimiteExcepcional(contratoAtual.idContrato, req.body.arrDiaExcepcional.idUnidadeEscolar, utimoDiaMes);
-                if(!verificacao1.status){
-                  await dao.deleta(idMonitoramento);
-                  return await ctrl.gerarRetornoOk(res, {resp: false}, mensagem);
+    if (req.userData.cargo.descricao == 'Responsável' || req.userData.cargo.descricao == 'Fiscal Suplente' || req.userData.cargo.descricao == 'Fiscal Titular') {
+      if(arrIdsMonitoramento.length > 0){
+        //Veirifica Dias Excepcionais
+        if(req.body.arrDiaExcepcional.verificacao){
+          let dataAtual = moment().format('YYYY-MM-DD');
+          let quantidadeDiasUtilizados = 0;
+          let verificaDiasExcepcionais = false;
+          let idContratoUeDiaExcepcional = 0;
+          let verificaRemocao = false;
+          let mensagem = 'Você atingiu o limite de dias excepcionais para o mês selecionado.';
+          const utimoDiaMes = moment(req.body.arrDiaExcepcional.data).clone().endOf('month').format('YYYY-MM-DD');
+          const contratoAtual = await dao.buscaContratoIdUeData(req.body.arrDiaExcepcional.idUnidadeEscolar, dataAtual);
+            
+          if (typeof contratoAtual === 'object' && contratoAtual.limiteDiasExcepcionais > 0) {
+            const diaExcepcional = await dao.buscaDiasExcepcionais(contratoAtual.idContrato, req.body.arrDiaExcepcional.idUnidadeEscolar, req.body.arrDiaExcepcional.data);
+            if (diaExcepcional) {
+                idContratoUeDiaExcepcional = diaExcepcional.id;
+                quantidadeDiasUtilizados = diaExcepcional.quantidadeDiasUtilizados + 1;
+                if (quantidadeDiasUtilizados > contratoAtual.limiteDiasExcepcionais) {
+                  verificaDiasExcepcionais = true;
                 } else {
-                  await dao.atualizaDiasExcepcionais(idContratoUeDiaExcepcional, quantidadeDiasUtilizados);
+                  const verificacao1 = await dao.comparaDataLimiteExcepcional(contratoAtual.idContrato, req.body.arrDiaExcepcional.idUnidadeEscolar, utimoDiaMes);
+                  if(!verificacao1.status){
+                    for(idMonitoramento of arrIdsMonitoramento){
+                      await dao.deleta(idMonitoramento);
+                    }
+                    return await ctrl.gerarRetornoOk(res, {resp: false}, mensagem);
+                  } else {
+                    await dao.atualizaDiasExcepcionais(idContratoUeDiaExcepcional, quantidadeDiasUtilizados);
+                  }
                 }
-              }
-            } else {
-              const verificacao2 = await dao.comparaDataLimiteExcepcional(contratoAtual.idContrato, req.body.arrDiaExcepcional.idUnidadeEscolar, utimoDiaMes);
-              if(verificacao2){
-                if(!verificacao2.status){
-                  await dao.deleta(idMonitoramento);
-                  return await ctrl.gerarRetornoOk(res, {resp: false}, mensagem);
+              } else {
+                const verificacao2 = await dao.comparaDataLimiteExcepcional(contratoAtual.idContrato, req.body.arrDiaExcepcional.idUnidadeEscolar, utimoDiaMes);
+                if(verificacao2){
+                  if(!verificacao2.status){
+                    for(idMonitoramento of arrIdsMonitoramento){
+                      await dao.deleta(idMonitoramento);
+                    }
+                    return await ctrl.gerarRetornoOk(res, {resp: false}, mensagem);
+                  } else {
+                    await dao.inserirDiasExcepcionais(contratoAtual.idContrato, req.body.arrDiaExcepcional.idUnidadeEscolar, 1, utimoDiaMes);
+                  }
                 } else {
                   await dao.inserirDiasExcepcionais(contratoAtual.idContrato, req.body.arrDiaExcepcional.idUnidadeEscolar, 1, utimoDiaMes);
                 }
-              } else {
-                await dao.inserirDiasExcepcionais(contratoAtual.idContrato, req.body.arrDiaExcepcional.idUnidadeEscolar, 1, utimoDiaMes);
               }
-            }
-          } 
+            } 
 
-          if(verificaDiasExcepcionais){
-            await dao.desabilitaDiasExcepcionais(idContratoUeDiaExcepcional);
-            for(idMonitoramento of arrIdsMonitoramento){
-              await dao.deleta(idMonitoramento);
+            if(verificaDiasExcepcionais){
+              await dao.desabilitaDiasExcepcionais(idContratoUeDiaExcepcional);
+              for(idMonitoramento of arrIdsMonitoramento){
+                await dao.deleta(idMonitoramento);
+              }
+              return await ctrl.gerarRetornoOk(res, {resp: false}, mensagem);
             }
-            return await ctrl.gerarRetornoOk(res, {resp: false}, mensagem);
-          }
+        }
       }
     }
 
