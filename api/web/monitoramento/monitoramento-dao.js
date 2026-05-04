@@ -247,7 +247,11 @@ class MonitoramentoDao extends GenericDao {
       SELECT culde.id_contrato_unidade_escolar_limite_dias_excepcionais as id, culde.quantidade_dias_utilizados, c.limite_dias_excepcionais as dias_excepcionais
       FROM contrato_unidade_escolar_limite_dias_excepcionais culde
       JOIN contrato c on (c.id_contrato = culde.id_contrato)
-      WHERE culde.id_contrato = $1 AND culde.id_unidade_escolar = $2 AND culde.validade >= $3 AND culde.status = true`;
+      WHERE culde.id_contrato = $1 
+      AND culde.id_unidade_escolar = $2 
+      AND (DATE_TRUNC('month', CAST($3 AS DATE)) + INTERVAL '1 month' - INTERVAL '1 day')::DATE = culde.validade
+      AND culde.status = true
+      LIMIT 1`;
     return this.queryFindOne(sql, [idContrato, idUnidadeEscolar, data]);
   }
 
