@@ -151,7 +151,6 @@ async function inserir(req, res) {
         }
     }
 
-    if (req.userData.cargo.descricao == 'Responsável' || req.userData.cargo.descricao == 'Fiscal Suplente' || req.userData.cargo.descricao == 'Fiscal Titular') {
       if(arrIdsMonitoramento.length > 0){
         //Veirifica Dias Excepcionais
         if(req.body.arrDiaExcepcional.verificacao){
@@ -208,7 +207,6 @@ async function inserir(req, res) {
             }
         }
       }
-    }
 
     await ctrl.gerarRetornoOk(res);
 
