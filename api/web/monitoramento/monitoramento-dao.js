@@ -249,7 +249,7 @@ class MonitoramentoDao extends GenericDao {
       JOIN contrato c on (c.id_contrato = culde.id_contrato)
       WHERE culde.id_contrato = $1 
       AND culde.id_unidade_escolar = $2 
-      AND (DATE_TRUNC('month', CAST($3 AS DATE)) + INTERVAL '1 month' - INTERVAL '1 day')::DATE = culde.validade
+      AND (DATE_TRUNC('year', CAST($3 AS DATE)) + INTERVAL '1 year' - INTERVAL '1 day')::DATE = culde.validade
       AND culde.status = true
       LIMIT 1`;
     return this.queryFindOne(sql, [idContrato, idUnidadeEscolar, data]);
