@@ -66,6 +66,7 @@ app.group("/api/web", (app) => {
     app.use('/relatorio/relatorio-equipe', require('./relatorio/relatorio-equipe/relatorio-equipe-controller'));
     app.use('/relatorio/relatorio-equipe-contrato', require('./relatorio/relatorio-equipe-contrato/relatorio-equipe-contrato-controller'));
 
+    app.use('/feriado-geral', require('./feriado-geral/feriado-geral-controller'));
 });
 
 module.exports = app;

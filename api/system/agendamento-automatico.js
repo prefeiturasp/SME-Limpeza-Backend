@@ -235,8 +235,16 @@ async function verificarEhPrimeiroDiaSemanaMes(unidadeEscolar) {
 async function buscarFeriado(idUnidadeEscolar, data) {
 
   const sql = `
-    select * from feriado
-    where data = $1::date and id_unidade_escolar = $2`;
+    SELECT data, descricao FROM (
+      SELECT data, descricao, 1 as prioridade FROM feriado 
+      WHERE data = $1::date AND id_unidade_escolar = $2
+      UNION ALL
+      SELECT data, descricao, 2 as prioridade FROM feriado_geral 
+      WHERE data = $1::date 
+         OR (recorrente = true AND TO_CHAR(data, 'MM-DD') = TO_CHAR($1::date, 'MM-DD'))
+    ) t 
+    ORDER BY prioridade 
+    LIMIT 1`;
 
   return await conn.findOne(sql, [data, idUnidadeEscolar]);
 

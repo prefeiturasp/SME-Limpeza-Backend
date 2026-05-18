@@ -3,7 +3,6 @@ const emailService = require('rfr')('core/email');
 const path = require('path');
 const moment = require('moment');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
-const fs = require('fs');
 
 let reqRes;
 let emailData = '';
@@ -14,32 +13,37 @@ function printToConsole(message, addToEmail = true) {
   reqRes.write(`\n<b>| ${dataHora} |</b>\t ${message}`);
 }
 
-// UTIL: carregar feriados do CSV como Set de 'YYYY-MM-DD'
-function carregarFeriadosCSVComoSet() {
+// UTIL: carregar feriados gerais do Banco de Dados como Set de 'YYYY-MM-DD'
+async function carregarFeriadosGeraisComoSet(transaction) {
   try {
-    const filePath = path.resolve(__dirname, 'utils', 'feriadosFechamentoAutomatico.csv');
+    const sql = `
+      select data, recorrente from feriado_geral
+      union all
+      select data, false as recorrente from feriado
+    `;
+    const rows = await conn.findAll(sql, [], transaction);
     const feriadosSet = new Set();
 
-    if (!fs.existsSync(filePath)) {
-      printToConsole(`Arquivo CSV não encontrado no caminho: ${filePath}`);
-      return feriadosSet;
-    }
+    const anoAtual = moment().year();
 
-    const conteudo = fs.readFileSync(filePath, 'utf8');
-    const linhas = conteudo.split('\n').map(l => l.trim()).filter(Boolean);
-    const dados = linhas.filter(l => !l.toLowerCase().startsWith('data'));
+    rows.forEach(row => {
+      const mData = moment(row.data);
+      if (mData.isValid()) {
+        // Adiciona a data original cadastrada
+        feriadosSet.add(mData.format('YYYY-MM-DD'));
 
-    for (const linha of dados) {
-      const [dataBr] = linha.split(';');
-      const ymd = moment(dataBr, 'DD-MM-YYYY', true).format('YYYY-MM-DD');
-      if (ymd && ymd !== 'Invalid date') {
-        feriadosSet.add(ymd);
+        if (row.recorrente) {
+          // Se for recorrente, projeta para o ano atual e o anterior
+          // garantindo a validação mesmo em janelas de tempo na virada do ano
+          feriadosSet.add(mData.clone().year(anoAtual).format('YYYY-MM-DD'));
+          feriadosSet.add(mData.clone().year(anoAtual - 1).format('YYYY-MM-DD'));
+        }
       }
-    }
+    });
 
     return feriadosSet;
   } catch (err) {
-    printToConsole(`Erro ao carregar CSV de feriados: ${err.message}`);
+    printToConsole(`Erro ao carregar feriados gerais do banco: ${err.message}`);
     return new Set();
   }
 }
@@ -86,7 +90,7 @@ module.exports = async (req, res) => {
   try {
     const diasEncerramento = await obterDiasEncerramentoOcorrencia(transaction);
     const diasUteis = Math.floor(diasEncerramento);
-    const feriadosSet = carregarFeriadosCSVComoSet();
+    const feriadosSet = await carregarFeriadosGeraisComoSet(transaction);
     const limite = subtrairDiasUteis(new Date(), diasUteis, feriadosSet);
 
     printToConsole(
@@ -128,6 +132,7 @@ module.exports = async (req, res) => {
 
     const encerradas = await conn.findAll(sqlUpdate, [limite, diasUteis], transaction);
 
+    const fs = require('fs');
     printToConsole(`Ocorrencias encerradas automaticamente: ${encerradas.length}`);
 
     const LOG_DIR = path.join(process.cwd(), 'logs');
@@ -185,5 +190,5 @@ if (!module.exports._test) {
   module.exports._test = {};
 }
 module.exports._test.subtrairDiasUteis = subtrairDiasUteis;
-module.exports._test.carregarFeriadosCSVComoSet = carregarFeriadosCSVComoSet;
+module.exports._test.carregarFeriadosGeraisComoSet = carregarFeriadosGeraisComoSet;
 module.exports._test.obterDiasEncerramentoOcorrencia = obterDiasEncerramentoOcorrencia;
