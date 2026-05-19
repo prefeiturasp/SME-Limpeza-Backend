@@ -220,10 +220,17 @@ class MonitoramentoDao extends GenericDao {
 
   buscaFeriadoUEPorData(data, idUnidadeEscolar) {
     const sql = `
-      SELECT id_feriado, data, descricao
-      FROM feriado
-      WHERE data = $1 AND id_unidade_escolar = $2
-      LIMIT 1;`;
+      SELECT id, data, descricao FROM (
+        SELECT id_feriado as id, data, descricao, 1 as prioridade FROM feriado
+        WHERE data = $1 AND id_unidade_escolar = $2
+        UNION ALL
+        SELECT id_feriado_geral as id, data, descricao, 2 as prioridade FROM feriado_geral
+        WHERE data = $1 
+           OR (recorrente = true AND TO_CHAR(data, 'MM-DD') = TO_CHAR($1::date, 'MM-DD'))
+      ) t 
+      ORDER BY prioridade 
+      LIMIT 1`;
+
     return this.queryFindOne(sql, [data, idUnidadeEscolar]);
   }
 
