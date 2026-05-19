@@ -334,25 +334,14 @@ class UsuarioDao extends GenericDao {
   buscarEntidadesSemUsuarios(){
     const sql = `(SELECT 'DRE' as tipo, dr.descricao as chave, dr.descricao as nome
        FROM diretoria_regional dr
-       WHERE dr.flag_ativo = true
-       AND NOT EXISTS (
-           SELECT 1 FROM usuario u
-           JOIN usuario_cargo uc ON u.id_usuario_cargo = uc.id_usuario_cargo
-           WHERE u.id_origem_detalhe = dr.id_diretoria_regional
-           AND uc.id_usuario_origem = 2 -- DRE
-           AND u.id_usuario_status = 1 -- Ativo
-       ))
+       WHERE dr.flag_ativo = true)
       UNION ALL
-      (SELECT 'UE' as tipo, ue.codigo as chave, ue.descricao as nome
+      (SELECT DISTINCT 'UE' as tipo, ue.codigo as chave, ue.descricao as nome
        FROM unidade_escolar ue
-       WHERE ue.flag_ativo = true
-       AND NOT EXISTS (
-           SELECT 1 FROM usuario u
-           JOIN usuario_cargo uc ON u.id_usuario_cargo = uc.id_usuario_cargo
-           WHERE u.id_origem_detalhe = ue.id_unidade_escolar
-           AND uc.id_usuario_origem = 3 -- UE
-           AND u.id_usuario_status = 1 -- Ativo
-       ))
+       JOIN contrato_unidade_escolar cue ON cue.id_unidade_escolar = ue.id_unidade_escolar
+       JOIN contrato c ON c.id_contrato = cue.id_contrato
+       WHERE ue.flag_ativo = true 
+       AND c.flag_ativo = true AND now() BETWEEN cue.data_inicial AND cue.data_final)
       UNION ALL
       (SELECT 'CONTRATO' as tipo, c.codigo as chave, c.descricao as nome
        FROM contrato c
