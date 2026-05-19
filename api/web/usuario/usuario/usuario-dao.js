@@ -330,7 +330,6 @@ class UsuarioDao extends GenericDao {
     return this.queryFindOne(sql, [email]);
   }
 
-
   buscarEntidadesSemUsuarios(){
     const sql = `(SELECT 'DRE' as tipo, dr.descricao as chave, dr.descricao as nome
        FROM diretoria_regional dr
