@@ -268,7 +268,6 @@ async function importar(req, res) {
         resumoHtml += `<tr><td>${p.tipo}</td><td>${p.nome}</td></tr>`;
       });
       resumoHtml += '</tbody></table>';
-
       return await ctrl.gerarRetornoErro(res,
         `Importação bloqueada: Existem entidades ativas sem usuários.<br><br>` +
         `<b>Itens faltando:</b>${resumoHtml}<br>` +
@@ -276,7 +275,6 @@ async function importar(req, res) {
     }
 
     usuarioList.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
-
     await ctrl.finalizarTransaction(isConfirmar, _transaction);
     await ctrl.gerarRetornoOk(res, usuarioList);
 
@@ -285,7 +283,6 @@ async function importar(req, res) {
     await ctrl.finalizarTransaction(false, _transaction);
     await ctrl.gerarRetornoErro(res, typeof error === 'string' ? error : null);
   }
-
 }
 
 async function buscarOrigemDetalheListagem(userData) {
