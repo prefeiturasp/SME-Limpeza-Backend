@@ -4,6 +4,7 @@ const utils = require('rfr')('core/utils/utils.js');
 const moment = require('moment');
 const fs = require('fs');
 const fse = require('fs-extra');
+const configuracaoService = require('../configuracao/configuracao-service');
 
 const serviceRelatorioModelo2 = require('../../system/gerar-relatorio-gerencial-modelo2');
 
@@ -164,7 +165,6 @@ async function inserir(req, res) {
   const _transaction = await ctrl.iniciarTransaction();
 
   try {
-
     const idOcorrencia = await dao.insert(_transaction, idOcorrenciaVariavel, observacao, acaoCorretiva, data, idFiscal, idUnidadeEscolar, prestadorServico.idPrestadorServico, idMonitoramento);
     await salvarArquivos(_transaction, idOcorrencia, arquivoList);
 
@@ -195,7 +195,7 @@ async function inserir(req, res) {
     }
 
     await ctrl.finalizarTransaction(true, _transaction);
-    await enviarEmailNovaOcorrencia(idOcorrencia);
+    await enviarEmailNovaOcorrencia(idOcorrencia, prestadorServico.idPrestadorServico);
     await ctrl.gerarRetornoOk(res);
 
   } catch (error) {
@@ -427,7 +427,16 @@ async function salvarArquivos(_transaction, idOcorrencia, arquivoList) {
 
 }
 
-async function enviarEmailNovaOcorrencia(idOcorrencia) {
+async function enviarEmailNovaOcorrencia(idOcorrencia, idPrestadorServico) {
+
+  let notificacaoOcorrenciaPsAtiva = false;
+  let emailsAdicionaisPs = '';
+
+  const configEmailsPs = await configuracaoService.obterObjetoConfiguracaoPs(idPrestadorServico);
+  if(configEmailsPs) {
+    notificacaoOcorrenciaPsAtiva = configEmailsPs.ocorrenciaAtivo;
+    emailsAdicionaisPs = configEmailsPs.ocorrenciaEmails;
+  }
 
   const verificacaoEmailOcorrencia = await ctrl.verificarEmailAtivo('EMAIL_NOTIFICACAO_OCORRENCIA');
   if (verificacaoEmailOcorrencia.valor !== 1) {
@@ -452,7 +461,13 @@ async function enviarEmailNovaOcorrencia(idOcorrencia) {
         E-mail enviado automaticamente, favor não responder.
     `;
 
-  const destinatario = ocorrencia.prestadorServico.email + ',' + diretoriaRegional.email + ',' + emailUsuarioPrestadorServicoList.join(',');
+  let destinatario = '';
+  if (notificacaoOcorrenciaPsAtiva && emailsAdicionaisPs.length > 4) {
+    destinatario = emailsAdicionaisPs.split(';').map(item => item.trim()).filter(item => item !== "").join(',');
+  } else {
+    destinatario = ocorrencia.prestadorServico.email + ',' + diretoriaRegional.email + ',' + emailUsuarioPrestadorServicoList.join(',');
+  }
+
   ctrl.enviarEmail(destinatario, 'Nova Ocorrência', html);
 
 }

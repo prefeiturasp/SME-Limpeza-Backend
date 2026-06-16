@@ -3,6 +3,7 @@ const utils = require('rfr')('core/utils/utils.js');
 const csv = require('rfr')('core/utils/csv.js');
 const bcrypt = require('bcrypt');
 const emailService = require('rfr')('core/email');
+const configuracaoService = require('../../configuracao/configuracao-service');
 
 const UsuarioCargoConstants = require('rfr')('core/constants/usuario-cargo.constantes');
 const UsuarioOrigemConstants = require('rfr')('core/constants/usuario-origem.constantes');
@@ -268,6 +269,7 @@ async function importar(req, res) {
         resumoHtml += `<tr><td>${p.tipo}</td><td>${p.nome}</td></tr>`;
       });
       resumoHtml += '</tbody></table>';
+
       return await ctrl.gerarRetornoErro(res,
         `Importação bloqueada: Existem entidades ativas sem usuários.<br><br>` +
         `<b>Itens faltando:</b>${resumoHtml}<br>` +
@@ -275,6 +277,7 @@ async function importar(req, res) {
     }
 
     usuarioList.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+
     await ctrl.finalizarTransaction(isConfirmar, _transaction);
     await ctrl.gerarRetornoOk(res, usuarioList);
 
@@ -283,6 +286,7 @@ async function importar(req, res) {
     await ctrl.finalizarTransaction(false, _transaction);
     await ctrl.gerarRetornoErro(res, typeof error === 'string' ? error : null);
   }
+
 }
 
 async function buscarOrigemDetalheListagem(userData) {
@@ -736,6 +740,13 @@ async function montarMenuGestorPS() {
       link: 'painel-inicial'
     },
     {
+      nome: 'Cadastros',
+      icone: 'icon-layers',
+      itemList: [
+        { nome: 'Configurações', link: 'configuracao' }
+      ]
+    },
+    {
       nome: 'Usuários',
       icone: 'icon-people',
       link: 'usuario'
@@ -827,10 +838,7 @@ async function enviarEmailNovoFiscal(usuarioLogado, nomeFiscal, emailFiscal, idU
 
 async function enviarEmailAtualizacaoFiscal(usuarioLogado, idUsuarioStatusAtual, idUsuarioStatusNovo, nomeFiscal, emailFiscal, idUsuarioCargo, idUnidadeEscolar, urlNomeacao) {
 
-  if (![
-    UsuarioCargoConstants.FISCAL_TITULAR,
-    UsuarioCargoConstants.FISCAL_SUPLENTE
-  ].includes(idUsuarioCargo)) {
+  if (![UsuarioCargoConstants.FISCAL_TITULAR, UsuarioCargoConstants.FISCAL_SUPLENTE].includes(idUsuarioCargo)) {
     return true;
   }
 
@@ -861,19 +869,31 @@ async function enviarEmailEventoFiscal(assuntoEmail, usuarioLogado, nomeFiscal, 
 
   const unidadeEscolar = await unidadeEscolarDao.buscarDetalhe(idUnidadeEscolar);
 
-  let destinatarios = '';
+  // Busca o Prestador de Serviço para ler as configurações de e-mail do CSV
+  const prestador = await dao.buscarIdPrestadorPorUnidadeEscolar(idUnidadeEscolar);
+  let emailsAdicionaisPs = '';
+  let notificacaoPsAtiva = true; // Mantém ativo por padrão se não houver arquivo configurado
+
+  if (prestador && prestador.id) {
+    const configPs = await configuracaoService.obterObjetoConfiguracaoPs(prestador.id);
+    notificacaoPsAtiva = configPs.ocorrenciaAtivo;
+    emailsAdicionaisPs = configPs.ocorrenciaEmails;
+  }
+
+  // Caso o item ativo não seja true, não envia o e-mail conforme solicitado
+  if (!notificacaoPsAtiva) {
+    console.log(`[INFO] Notificação abortada: Prestador da UE ${idUnidadeEscolar} está com notificações desativadas no CSV.`);
+    return;
+  }
+
+  // Busca os usuários do Prestador de Serviço do banco de dados
+  const usuariosPS = await dao.buscarUsuariosPrestadoresPorContratoAtivoUE(idUnidadeEscolar);
   
-  const verificacaoListaEmails = await ctrl.verificarEmailAtivo('EMAIL_NOTIFICACAO_LISTA_EMAILS');
-  if (verificacaoListaEmails.valor === 1 && verificacaoListaEmails.descricao) {
+  let destinatarios = (unidadeEscolar.diretoriaRegional.email || '') + ';';
+  usuariosPS.forEach(u => { if (u.email) destinatarios += u.email + ';'; });
 
-    const emailsSME = verificacaoListaEmails.descricao.split(';');
-    destinatarios = emailsSME.reduce((string, email) => (string + email + ';'), (unidadeEscolar.diretoriaRegional.email + ';'));
-
-  } else {
-
-    const usuariosSME = await dao.comboPorOrigem(UsuarioOrigemConstants.SME);
-    destinatarios = usuariosSME.reduce((string, user) => (string + user.email + ';'), (unidadeEscolar.diretoriaRegional.email + ';'));
-
+  if (emailsAdicionaisPs) {
+    destinatarios += emailsAdicionaisPs + (emailsAdicionaisPs.endsWith(';') ? '' : ';');
   }
 
   const html = `
