@@ -76,26 +76,33 @@ async function tabela(req, res) {
   const flagSomenteAtivos = params.filters.flagSomenteAtivos !== 'false';
   const ehPrestadorServico = req.userData.origem.codigo === 'ps';
   const idPrestadorServico = ehPrestadorServico ? req.userData.idOrigemDetalhe : params.filters.prestadorServico?.id;
-  const idDiretoriaRegional = req.userData.origem.codigo === 'dre' ? req.userData.idOrigemDetalhe : null;
   
-  const extrairIdsUE = (ue) => {
-    if (!ue) return null;
-    if (Array.isArray(ue)) {
-      const ids = ue.map(x => Number(x?.id)).filter(Number.isFinite);
-      return ids.length ? ids : null;
-    }
-    return ue.id != null ? [Number(ue.id)] : null;
+  const extrairIds = (campo) => {
+    if (!campo) return null;
+    const array = Array.isArray(campo) ? campo : [campo];
+    const ids = array.map(x => Number(x?.id)).filter(Number.isFinite);
+    return ids.length ? ids : null;
   };
-  let idUnidadeEscolarList = null;
-  if (req.userData.origem.codigo === 'ue') {
-    idUnidadeEscolarList = [Number(req.userData.idOrigemDetalhe)];
-  } else {
-    idUnidadeEscolarList = extrairIdsUE(params.filters.unidadeEscolar);
-  }
 
-  const idContratoPermissaoList = req.userData.origem.codigo !== 'sme' ? null : (await usuarioDao.comboContratoPorUsuarioSME(req.userData.idUsuario)).map(c => c.id);
-  const possuiPermissaoContratoFiltrado = (idContratoPermissaoList || []).some(c => c === params.filters.contrato?.id);
-  const idContratoList = params.filters.contrato && possuiPermissaoContratoFiltrado ? [params.filters.contrato.id] : idContratoPermissaoList;
+  const idDiretoriaRegional = req.userData.origem.codigo === 'dre'
+    ? [Number(req.userData.idOrigemDetalhe)]
+    : extrairIds(params.filters.dre);
+
+  const idUnidadeEscolarList = req.userData.origem.codigo === 'ue'
+    ? [Number(req.userData.idOrigemDetalhe)]
+    : extrairIds(params.filters.unidadeEscolar);
+
+  let idContratoList = null;
+  const idsContratoSelecionados = extrairIds(params.filters.contrato);
+
+  if (req.userData.origem.codigo === 'sme') {
+    const idsPermitidos = (await usuarioDao.comboContratoPorUsuarioSME(req.userData.idUsuario)).map(c => c.id);
+    idContratoList = idsContratoSelecionados
+      ? idsContratoSelecionados.filter(id => idsPermitidos.includes(id))
+      : idsPermitidos;
+  } else if (req.userData.origem.codigo === 'ps') {
+    idContratoList = idsContratoSelecionados;
+  }
 
   const dataInicial = moment(params.filters.dataInicial).format('YYYY-MM-DD');
   const dataFinal = moment(params.filters.dataFinal).format('YYYY-MM-DD');
