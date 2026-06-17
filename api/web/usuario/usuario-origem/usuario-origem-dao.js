@@ -17,6 +17,18 @@ class UsuarioOrigemDao extends GenericDao {
         `, [idUsuarioCargo]);
     }
 
+    carregarComboDrePs(idPrestadorServico) {
+        return this.queryFindAll(`
+            select distinct dr.id_diretoria_regional as id, dr.descricao
+            from diretoria_regional dr
+            join unidade_escolar ue using (id_diretoria_regional)
+            join contrato_unidade_escolar cue using (id_unidade_escolar)
+            join contrato c using (id_contrato)
+            where c.id_prestador_servico = $1 and dr.flag_ativo
+            order by dr.descricao
+        `, [idPrestadorServico]);
+    }
+
 }
 
 module.exports = UsuarioOrigemDao;
