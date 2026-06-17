@@ -330,6 +330,7 @@ class UsuarioDao extends GenericDao {
     return this.queryFindOne(sql, [email]);
   }
 
+
   buscarEntidadesSemUsuarios(){
     const sql = `(SELECT 'DRE' as tipo, dr.descricao as chave, dr.descricao as nome
        FROM diretoria_regional dr
@@ -364,6 +365,38 @@ class UsuarioDao extends GenericDao {
           select unaccent(lower(trim(e))) from unnest($1::text[]) e
       ))`;
     return this.query(sql, [emails], _transaction);
+  }
+
+  buscarUsuariosPrestadoresPorContratoAtivoUE(idUnidadeEscolar) {
+    const sql = `
+      SELECT DISTINCT u.email
+      FROM usuario u
+      JOIN usuario_status us ON us.id_usuario_status = u.id_usuario_status
+      JOIN usuario_cargo uc ON uc.id_usuario_cargo = u.id_usuario_cargo
+      JOIN usuario_origem uo ON uo.id_usuario_origem = uc.id_usuario_origem
+      JOIN prestador_servico ps ON ps.id_prestador_servico = u.id_origem_detalhe
+      JOIN contrato c ON c.id_prestador_servico = ps.id_prestador_servico
+      JOIN contrato_unidade_escolar cue ON cue.id_contrato = c.id_contrato
+      WHERE cue.id_unidade_escolar = $1
+        AND uo.codigo = 'ps'
+        AND us.flag_pode_logar = true
+        AND ps.flag_ativo = true
+        AND c.flag_ativo = true
+        AND now() BETWEEN cue.data_inicial AND cue.data_final`;
+
+    return this.queryFindAll(sql, [idUnidadeEscolar]);
+  }
+
+  buscarIdPrestadorPorUnidadeEscolar(idUnidadeEscolar) {
+    const sql = `
+      SELECT c.id_prestador_servico as id
+      FROM contrato c
+      JOIN contrato_unidade_escolar cue ON cue.id_contrato = c.id_contrato
+      WHERE cue.id_unidade_escolar = $1 
+        AND c.flag_ativo = true 
+        AND now() BETWEEN cue.data_inicial AND cue.data_final
+      LIMIT 1`;
+    return this.queryFindOne(sql, [idUnidadeEscolar]);
   }
 
 }
