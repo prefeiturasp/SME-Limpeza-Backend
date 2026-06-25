@@ -291,13 +291,14 @@ class OcorrenciaDao extends GenericDao {
         ue.codigo as ue_codigo, ue.descricao as ue_nome,
         ot.descricao as variavel_gerencial_principal, ov.descricao as variavel_gerencial_secundaria, o.observacao, 
       case when o.acao_corretiva is not null then o.acao_corretiva else ' - ' end as acao_corretiva,
-      case when aue.descricao is not null then aue.descricao else ' - ' end as ambiente,
-      case 
+      case
+      when aue.descricao is not null then aue.descricao else ' - ' end as ambiente,
+      case
           when o.flag_encerramento_automatico is true then 'Automaticamente'
-          when o.flag_encerrado is true then 'Sim'
+          when o.data_hora_final is not null then 'Sim'
           else 'Não'
       end as encerrado,
-      case when o.flag_encerrado is true and o.flag_gerar_desconto is false then 'Sim' else 'Não' end as atendido
+      case when o.data_hora_final is not null and o.flag_gerar_desconto is false then 'Sim' else 'Não' end as atendido
       from unidades u
       join ocorrencia o using (id_unidade_escolar)
       left join monitoramento using (id_monitoramento)
