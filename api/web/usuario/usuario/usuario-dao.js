@@ -82,7 +82,7 @@ class UsuarioDao extends GenericDao {
       join usuario_cargo uc on uc.id_usuario_cargo = u.id_usuario_cargo
       join usuario_origem uo on uo.id_usuario_origem = uc.id_usuario_origem
       join usuario_status us on us.id_usuario_status = u.id_usuario_status
-      where unaccent(lower(u.email)) ilike unaccent(lower(trim($1)))`;
+      where unaccent(lower(u.email)) = unaccent(lower(trim($1)))`;
 
     return this.queryFindOne(sql, [email], _transaction);
 
