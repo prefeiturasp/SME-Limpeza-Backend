@@ -595,7 +595,7 @@ async function montarMenuGestorSME() {
         { nome: 'Equipe Alocada - UE', link: 'relatorio/equipe' },
         { nome: 'Equipe Alocada - Contrato', link: 'relatorio/equipe-contrato' },
         // { nome: 'Ocorrências - Funcionários', link: 'relatorio/ocorrencia-funcionario' },
-        { nome: 'Declarações', link: 'declaracao' }
+        // { nome: 'Declarações', link: 'declaracao' }
       ]
     },
   ];
@@ -635,7 +635,7 @@ async function montarMenuGestorDRE() {
         { nome: 'Boletim de Medição - UE', link: 'relatorio/gerencial' },
         { nome: 'Boletim de Medição - Contrato', link: 'relatorio/contrato' },
         { nome: 'Pontuação - Contrato', link: 'relatorio/contrato-pontos' },
-        { nome: 'Declarações', link: 'declaracao' }
+        // { nome: 'Declarações', link: 'declaracao' }
       ]
     },
   ];
@@ -715,11 +715,11 @@ async function montarMenuFiscalUE() {
         { nome: 'Mensagens', link: 'ocorrencia/mensagem' },
       ]
     },
-    {
-      nome: 'Declarações',
-      icone: 'icon-note',
-      link: 'declaracao'
-    },
+    // {
+    //   nome: 'Declarações',
+    //   icone: 'icon-note',
+    //   link: 'declaracao'
+    // },
     {
       nome: 'Relatórios',
       icone: 'icon-chart',
