@@ -205,7 +205,7 @@ class MonitoramentoDao extends GenericDao {
                 join tipo_escola te on (te.id_tipo_escola = ue.id_tipo_escola)
                 join contrato_unidade_escolar cue on (cue.id_unidade_escolar = ue.id_unidade_escolar)
                 join contrato c on (c.id_contrato = cue.id_contrato)
-                WHERE c.id_contrato IN $1
+                WHERE c.id_contrato = $1
                 order by ue.descricao`;
 
     return this.queryFindAll(sql, [idsContrato]);
