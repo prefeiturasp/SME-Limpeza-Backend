@@ -92,22 +92,71 @@ class MonitoramentoDao extends GenericDao {
     ]);
   }
 
-  datatableDatasAgendamentoManual(idUnidadeEscolar, length, start) {
+  async datatableDatasAgendamentoManual(params) {
+
+    const idUnidadeEscolarList = params.idUnidadeEscolarList;
+    const idContratoList = params.idContratoList || null;
+    const idDiretoriaRegional = params.idDiretoriaRegional || null;
+    const idPrestadorServico = params.idPrestadorServico || null;
+
+    const length = params.length;
+    const start = params.start;
+
+    const where = [];
+    const sqlParams = [];
+    let paramCount = 1;
+
+    if (idUnidadeEscolarList) {
+      where.push(`m.id_unidade_escolar = ANY ($${paramCount++})`);
+      sqlParams.push(idUnidadeEscolarList);
+    }
+
+    if (idContratoList) {
+      where.push(`c.id_contrato = ANY($${paramCount++})`);
+      sqlParams.push(idContratoList);
+    }
+
+    if (idDiretoriaRegional) {
+      where.push(`ue.id_diretoria_regional = $${paramCount++}`);
+      sqlParams.push(idDiretoriaRegional);
+    }
+
+    if (idPrestadorServico) {
+      where.push(`m.id_prestador_servico = $${paramCount++}`);
+      sqlParams.push(idPrestadorServico);
+    }
+
+    const limitOffset = (length != null && start != null) 
+      ? `LIMIT $${paramCount++} OFFSET $${paramCount++}`
+      : '';
 
     const sql = `
-      with dados as (
-        select m.data, count(m) as quantidade
-        from monitoramento m
-        where m.flag_ativo and m.id_unidade_escolar = $1 and m.id_plano_trabalho_unidade_escolar is null
-        group by m.data
-        order by m.data desc
-      )
-      select count(d.*) over() as records_total, d.data, d.quantidade
-      from dados d
-      limit $2 offset $3`;
+      SELECT 
+        ${length != null ? 'count(m.id_monitoramento) OVER() AS records_total,' : ''}
+        m.id_monitoramento,
+        m.data,
+        json_build_object('id', ue.id_unidade_escolar, 'descricao', ue.descricao, 'codigo', ue.codigo, 'diretoriaRegional', json_build_object('id', dr.id_diretoria_regional, 'descricao', dr.descricao)) AS "unidadeEscolar",
+        json_build_object('id', c.id_contrato, 'contrato_codigo', c.codigo, 'contrato_descricao', c.descricao) AS contrato
+      FROM monitoramento m
+      JOIN LATERAL (
+        SELECT cue.id_contrato
+        FROM contrato_unidade_escolar cue
+        WHERE cue.id_unidade_escolar = m.id_unidade_escolar AND m.data BETWEEN cue.data_inicial AND cue.data_final
+        LIMIT 1
+      ) cue ON true
+      JOIN contrato c ON c.id_contrato = cue.id_contrato
+      JOIN unidade_escolar ue ON ue.id_unidade_escolar = m.id_unidade_escolar
+      JOIN diretoria_regional dr ON dr.id_diretoria_regional = ue.id_diretoria_regional
+      WHERE m.flag_ativo AND m.id_plano_trabalho_unidade_escolar IS NULL ${where.length ? `AND ${where.join(' AND ')}` : ''}
+      ORDER BY m.data DESC, dr.descricao, c.codigo, ue.descricao
+      ${limitOffset}`;
 
-    return this.queryFindAll(sql, [idUnidadeEscolar, length, start]);
+    if (length != null && start != null) sqlParams.push(length, start);
+    
+    const data = await this.queryFindAll(sql, sqlParams);
 
+    if (length != null && start != null) return data;
+    return { data: data };
   }
 
   inserir(idPrestadorServico, idUnidadeEscolar, idAmbienteUnidadeEscolar, idPeriodicidade, idTurno, descricao, data) {
@@ -150,16 +199,39 @@ class MonitoramentoDao extends GenericDao {
 
   }
 
-  comboUePorIdContrato(idContrato) {
+  comboUePorIdContrato(idsContrato) {
     const sql = `select c.id_contrato, ue.id_unidade_escolar as id, ue.descricao, ue.codigo, te.descricao as tipo
                 from unidade_escolar ue
                 join tipo_escola te on (te.id_tipo_escola = ue.id_tipo_escola)
                 join contrato_unidade_escolar cue on (cue.id_unidade_escolar = ue.id_unidade_escolar)
                 join contrato c on (c.id_contrato = cue.id_contrato)
-                WHERE c.id_contrato = $1
+                WHERE c.id_contrato IN $1
                 order by ue.descricao`;
 
-    return this.queryFindAll(sql, [idContrato]);
+    return this.queryFindAll(sql, [idsContrato]);
+  }
+
+  comboUePorIdContratoList(idContratoList) {
+    const sql = `
+      SELECT DISTINCT ue.id_unidade_escolar as id, ue.descricao, ue.codigo, te.descricao as tipo
+      FROM unidade_escolar ue
+      JOIN tipo_escola te on (te.id_tipo_escola = ue.id_tipo_escola)
+      JOIN contrato_unidade_escolar cue on (cue.id_unidade_escolar = ue.id_unidade_escolar)
+      WHERE cue.id_contrato = ANY($1)
+      ORDER BY ue.descricao`;
+
+    return this.queryFindAll(sql, [idContratoList]);
+  }
+
+  comboContratoPorIdUeList(idUeList) {
+    const sql = `
+      SELECT DISTINCT c.id_contrato as id, c.descricao, c.codigo
+      FROM contrato c
+      JOIN contrato_unidade_escolar cue on (cue.id_contrato = c.id_contrato)
+      WHERE cue.id_unidade_escolar = ANY($1)
+      ORDER BY c.codigo`;
+
+    return this.queryFindAll(sql, [idUeList]);
   }
 
   comboPrestadorServicoPorIdContrato(idContrato) {
