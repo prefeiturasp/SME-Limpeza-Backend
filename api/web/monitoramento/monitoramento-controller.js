@@ -12,9 +12,12 @@ router.route('/comboUePorIdContrato').post(service.comboUePorIdContrato);
 router.route('/comboPrestadorServicoPorIdContrato').post(service.comboPrestadorServicoPorIdContrato);
 router.route('/comboContratoPorIdPrestadorServico').post(service.comboContratoPorIdPrestadorServico);
 router.route('/comboUePorIdPrestadorServico').post(service.comboUePorIdPrestadorServico);
+router.route('/comboUePorIdContratoList').post(service.comboUePorIdContratoList);
 router.route('/comboContratoPorIdUe').post(service.comboContratoPorIdUe);
+router.route('/comboContratoPorIdUeList').post(service.comboContratoPorIdUeList);
 router.route('/comboPrestadorServicoPorIdUe').post(service.comboPrestadorServicoPorIdUe);
 router.route('/verificaSeDataEferiado').post(service.verificaSeDataEferiado);
+router.route('/exportar-agendamento-manual').post(service.exportarRelatorioAgendamentoManual);
 
 module.exports = router;
  

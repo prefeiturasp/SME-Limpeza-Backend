@@ -1,5 +1,6 @@
 const ctrl = require('rfr')('core/controller.js');
 const utils = require('rfr')('core/utils/utils.js');
+const csv = require('rfr')('core/utils/csv.js');
 const moment = require('moment');
 
 const UsuarioCargoConstants = require('rfr')('core/constants/usuario-cargo.constantes');
@@ -19,21 +20,22 @@ exports.tabelaDatasAgendamentoManual = tabelaDatasAgendamentoManual;
 exports.inserir = inserir;
 exports.atualizar = atualizar;
 exports.remover = remover;
-exports.comboUePorIdContrato = comboUePorIdContrato;
 exports.comboPrestadorServicoPorIdContrato = comboPrestadorServicoPorIdContrato;
 exports.comboContratoPorIdPrestadorServico = comboContratoPorIdPrestadorServico;
-exports.comboUePorIdPrestadorServico = comboUePorIdPrestadorServico;
-exports.comboContratoPorIdUe = comboContratoPorIdUe;
+exports.comboUePorIdContratoList = comboUePorIdContratoList;
+exports.comboUePorIdContrato = comboUePorIdContrato;
 exports.comboPrestadorServicoPorIdUe = comboPrestadorServicoPorIdUe;
 exports.verificaSeDataEferiado = verificaSeDataEferiado;
+exports.exportarRelatorioAgendamentoManual = exportarRelatorioAgendamentoManual;
+exports.comboUePorIdPrestadorServico = comboUePorIdPrestadorServico;
+exports.comboContratoPorIdUe = comboContratoPorIdUe;
+exports.comboContratoPorIdUeList = comboContratoPorIdUeList;
 
 
 async function buscar(req, res) {
-
   if (!req.params.id) {
     return await ctrl.gerarRetornoErro(res);
   }
-
   try {
     let monitoramento = await dao.buscar(req.params.id);
     monitoramento.flagPodeFiscalizar = await ctrl.verificarPodeFiscalizar(req.userData, monitoramento.unidadeEscolar.idUnidadeEscolar);
@@ -51,11 +53,12 @@ async function tabela(req, res) {
     const origem = req.userData.origem.codigo;
     const temFiltroImplicito = origem === 'ps' || origem === 'dre' || origem === 'ue';
     const filters = params.filters || {};
+    const idPrestadorServico = origem === 'ps' ? req.userData.idOrigemDetalhe : filters?.prestadorServico?.id || null;
+    const datasList = Array.isArray(filters?.datas) && filters.datas.length ? filters.datas : null;
     const idUnidadeEscolar = origem === 'ue' ? req.userData.idOrigemDetalhe : filters?.unidadeEscolar?.id || null;
     const idDiretoriaRegional = origem === 'dre' ? req.userData.idOrigemDetalhe : null;
     const idAmbienteUnidadeEscolar = filters?.idAmbienteUnidadeEscolar || null;
-    const idPrestadorServico = origem === 'ps' ? req.userData.idOrigemDetalhe : filters?.prestadorServico?.id || null;
-    const datasList = Array.isArray(filters?.datas) && filters.datas.length ? filters.datas : null;
+
     const idContratoFiltro = filters?.contrato?.id || null;
 
     const temFiltroExplicito =
@@ -106,15 +109,36 @@ async function tabela(req, res) {
 
 async function tabelaDatasAgendamentoManual(req, res) {
 
-  if (req.userData.origem.codigo !== 'ue') {
-    return await ctrl.gerarRetornoErro(res, 'Você não possui permissão para realizar essa operação.');
+  try {
+    const params = await utils.getDatatableParams(req);
+    const origem = req.userData.origem.codigo;
+    const filters = params.filters || {}; // Mantém como objeto vazio se for nulo
+    const idContratoListFiltro = (filters.contrato && filters.contrato.length > 0) ? filters.contrato.map(c => c.id) : null;
+    const idUnidadeEscolarListFiltro = (filters.unidadeEscolar && filters.unidadeEscolar.length > 0) ? filters.unidadeEscolar.map(ue => ue.id) : null;
+
+    const idContratoList = origem !== 'sme'
+      ? null
+      : await (async () => {
+        const contratos = (await daoUsuario.comboContratoPorUsuarioSME(req.userData.idUsuario)) || [];
+        const ids = contratos.map(c => c.id);
+        return idContratoListFiltro?.filter(id => ids.includes(id)) || ids;
+      })();
+
+    const daoParams = {
+      idUnidadeEscolarList: origem === 'ue' ? [req.userData.idOrigemDetalhe] : idUnidadeEscolarListFiltro,
+      idDiretoriaRegional: origem === 'dre' ? req.userData.idOrigemDetalhe : null,
+      idPrestadorServico: origem === 'ps' ? req.userData.idOrigemDetalhe : null,
+      idContratoList: idContratoList,
+      length: params.length,
+      start: params.start
+    }
+
+    const tabela = await dao.datatableDatasAgendamentoManual(daoParams);
+    return ctrl.gerarRetornoDatatable(res, tabela); // A função já retorna o array paginado
+  } catch (error) {
+    console.log(error);
+    return ctrl.gerarRetornoErro(res);
   }
-
-  const params = await utils.getDatatableParams(req);
-  const idUnidadeEscolar = req.userData.idOrigemDetalhe;
-  const tabela = await dao.datatableDatasAgendamentoManual(idUnidadeEscolar, params.length, params.start);
-  await ctrl.gerarRetornoDatatable(res, tabela);
-
 }
 
 async function inserir(req, res) {
@@ -299,6 +323,10 @@ async function comboUePorIdContrato(req, res) {
   return await ctrl.gerarRetornoOk(res, await dao.comboUePorIdContrato(req.body.idContrato));
 }
 
+async function comboUePorIdContratoList(req, res) {
+  return await ctrl.gerarRetornoOk(res, await dao.comboUePorIdContratoList(req.body.idsContratoList));
+}
+
 async function comboPrestadorServicoPorIdContrato(req, res) {
   return await ctrl.gerarRetornoOk(res, await dao.comboPrestadorServicoPorIdContrato(req.body.idContrato));
 }
@@ -315,6 +343,10 @@ async function comboContratoPorIdUe(req, res) {
   return await ctrl.gerarRetornoOk(res, await dao.comboContratoPorIdUe(req.body.idUe));
 } 
 
+async function comboContratoPorIdUeList(req, res) {
+  return await ctrl.gerarRetornoOk(res, await dao.comboContratoPorIdUeList(req.body.idUeList));
+}
+
 async function comboPrestadorServicoPorIdUe(req, res) {
   return await ctrl.gerarRetornoOk(res, await dao.comboPrestadorServicoPorIdUe(req.body.idUe));
 }
@@ -325,4 +357,46 @@ async function verificaSeDataEferiado(req, res) {
   }
   const feriado = await dao.buscaFeriadoUEPorData(req.body.data, req.body.idUnidadeEscolar);
   return await ctrl.gerarRetornoOk(res, feriado );
+}
+
+async function exportarRelatorioAgendamentoManual(req, res) {
+  try {
+    const origem = req.userData.origem.codigo;
+    const filters = req.body || {};
+    const idContratoListFiltro = (filters.contrato && filters.contrato.length > 0) ? filters.contrato.map(c => c.id) : null;
+    const idUnidadeEscolarListFiltro = (filters.unidadeEscolar && filters.unidadeEscolar.length > 0) ? filters.unidadeEscolar.map(ue => ue.id) : null;
+
+    const idContratoList = origem !== 'sme' ? null : await (async () => {
+        const contratos = (await daoUsuario.comboContratoPorUsuarioSME(req.userData.idUsuario)) || [];
+        const ids = contratos.map(c => c.id);
+        return idContratoListFiltro?.filter(id => ids.includes(id)) || ids;
+      })();
+
+    const daoParams = {
+      idUnidadeEscolarList: origem === 'ue' ? [req.userData.idOrigemDetalhe] : idUnidadeEscolarListFiltro,
+      idDiretoriaRegional: origem === 'dre' ? req.userData.idOrigemDetalhe : null,
+      idPrestadorServico: origem === 'ps' ? req.userData.idOrigemDetalhe : null,
+      idContratoList: idContratoList,
+      length: null, // Sem limite para exportação
+      start: 0
+    };
+
+    const dados = await dao.datatableDatasAgendamentoManual(daoParams);
+    let dadosCSV = [];
+    dados.data.forEach(item => {
+      const itemCSV = {};
+      itemCSV['Diretoria Regional'] = item.contrato.contratoDescricao;
+      itemCSV['Contrato'] = item.contrato.contratoCodigo;
+      itemCSV['Unidade Escolar'] = item.unidadeEscolar.descricao;
+      itemCSV['Data'] = moment(item.data).format('DD/MM/YYYY');
+      dadosCSV.push(itemCSV);
+    });
+
+    const csvResult = await csv.converterFromJson(dadosCSV);
+
+    return await ctrl.gerarRetornoCSV(res, csvResult, 'relatorio-agendamento-manual');
+  } catch (error) {
+    console.log(error);
+    return ctrl.gerarRetornoErro(res);
+  }
 }
