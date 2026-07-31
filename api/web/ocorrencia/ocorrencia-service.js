@@ -185,7 +185,7 @@ async function inserir(req, res) {
       if(buscaOcorrenciasRetroativaDisponivel.idOcorrenciaRetroativaOcorrencia){
         await dao.updateOcorrenciaRetroativaOcorrencia(buscaOcorrenciasRetroativaDisponivel.idOcorrenciaRetroativaOcorrencia, idOcorrencia, idFiscal, _transaction);
         await dao.finalizaOcorrencia(idOcorrencia, _transaction);
-        buscaSalvaHistoricoOcorrencia(idOcorrencia, 3, idUsuario);
+        await buscaSalvaHistoricoOcorrencia(idOcorrencia, 3, idFiscal);
         
       } 
       
@@ -248,7 +248,7 @@ async function encerrar(req, res) {
     }
 
     await dao.encerrar(_transaction, idOcorrencia, dataHora, flagGerarDesconto, motivoNaoAtendido);
-    buscaSalvaHistoricoOcorrencia(idOcorrencia, 4, idUsuario);
+    await buscaSalvaHistoricoOcorrencia(idOcorrencia, 4, idUsuario);
 
     const contrato = await unidadeEscolarDao.buscarContrato(ocorrencia.unidadeEscolar.id, ocorrencia.data);
 
@@ -308,7 +308,7 @@ async function reabrir(req, res) {
       return await ctrl.gerarRetornoErro(res);
     }
     await dao.reabrir(idOcorrencia);
-    buscaSalvaHistoricoOcorrencia(idOcorrencia, 2, idUsuario, 'reabrir');
+    await buscaSalvaHistoricoOcorrencia(idOcorrencia, 2, idUsuario, 'reabrir');
 
     await ctrl.gerarRetornoOk(res);
   } catch (error) {
@@ -515,6 +515,7 @@ async function buscaSalvaHistoricoOcorrencia(idOcorrencia, idStatusNovo, idUsuar
     }
     await dao.salvaHistoricoOcorrencia(idOcorrencia, null, idStatusNovo, idUsuario);
   }
+  await ctrl.finalizarTransaction(true, _transaction);
 }
 
 
