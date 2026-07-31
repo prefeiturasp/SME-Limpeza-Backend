@@ -308,7 +308,7 @@ async function reabrir(req, res) {
       return await ctrl.gerarRetornoErro(res);
     }
     await dao.reabrir(idOcorrencia);
-    buscaSalvaHistoricoOcorrencia(idOcorrencia, 2, idUsuario);
+    buscaSalvaHistoricoOcorrencia(idOcorrencia, 2, idUsuario, 'reabrir');
 
     await ctrl.gerarRetornoOk(res);
   } catch (error) {
@@ -501,12 +501,27 @@ async function buscaTodoHistoricoOcorrencia(req, res) {
   
 }
 
-async function buscaSalvaHistoricoOcorrencia(idOcorrencia, idStatusNovo, idUsuario) {
+async function buscaSalvaHistoricoOcorrencia(idOcorrencia, idStatusNovo, idUsuario, tipoSalvamento = '') {
   const _transaction = await ctrl.iniciarTransaction();
   const historico = await dao.buscaUltimoHistoricoOcorrencia(idOcorrencia, _transaction);
   if (historico) {
+    if (tipoSalvamento === 'reabrir') {
+      reabreOcorrencia(idOcorrencia, _transaction);
+    } 
     await dao.salvaHistoricoOcorrencia(idOcorrencia, historico.idStatusNovo, idStatusNovo, idUsuario);
   } else {
+    if (tipoSalvamento === 'reabrir') {
+      reabreOcorrencia(idOcorrencia, _transaction);
+    }
     await dao.salvaHistoricoOcorrencia(idOcorrencia, null, idStatusNovo, idUsuario);
   }
+}
+
+
+async function reabreOcorrencia(idOcorrencia, _transaction) {
+  const detalhes = await dao.buscaDetalheEncerramentoOcorrencia(idOcorrencia, _transaction);
+  if (detalhes.flagEncerramentoAutomatico) {
+    await dao.alteraFlagEncerramentoAutomatico(idOcorrencia, false, null);
+  }
+  await dao.alteraDataCadastroOcorrencia(idOcorrencia);
 }
