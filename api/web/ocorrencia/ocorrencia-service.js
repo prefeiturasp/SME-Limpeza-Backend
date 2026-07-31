@@ -299,7 +299,6 @@ async function reabrir(req, res) {
     return await ctrl.gerarRetornoErro(res);
   }
 
-  const _transaction = await ctrl.iniciarTransaction();
   const idUsuario = req.userData.idUsuario;
   const idOcorrencia = req.params.id;
 
