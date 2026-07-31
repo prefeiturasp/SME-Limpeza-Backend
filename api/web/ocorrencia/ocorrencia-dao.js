@@ -458,6 +458,56 @@ class OcorrenciaDao extends GenericDao {
     return this.queryFindOne(sql, [idOcorrenciaRetroativa], _transaction);
   }
 
+  buscaTodoHistoricoOcorrencia(idOcorrencia, _transaction) {
+    const sql = `select oh.id_ocorrencia, u.nome as usuario, sa.descricao as status_antigo, sn.descricao as status_novo, oh.data_hora
+    from ocorrencia_historico oh
+    left join status_ocorrencia sa ON sa.id_status_ocorrencia = oh.id_status_antigo
+    left join status_ocorrencia sn ON sn.id_status_ocorrencia = oh.id_status_novo
+    join usuario u ON u.id_usuario = oh.id_usuario
+    where oh.id_ocorrencia = $1 order by id_ocorrencia_historico desc`;
+
+    return this.queryFindAll(sql, [idOcorrencia], _transaction);
+  }
+
+  buscaUltimoHistoricoOcorrencia(idOcorrencia, _transaction) {
+    const sql = `select id_ocorrencia, id_status_antigo, id_status_novo
+    from ocorrencia_historico 
+    where id_ocorrencia = $1
+    order by id_ocorrencia_historico desc limit 1`;
+
+    return this.queryFindOne(sql, [idOcorrencia], _transaction);
+  }
+
+  salvaHistoricoOcorrencia(idOcorrencia, idStatusAntigo, idStatusNovo, idUsuario) {
+    const sql = `insert into ocorrencia_historico (id_ocorrencia, id_status_antigo, id_status_novo, id_usuario)
+    values ($1, $2, $3, $4)`;
+
+    return this.query(sql, [idOcorrencia, idStatusAntigo, idStatusNovo, idUsuario]);
+  }
+
+  removerHistoricoOcorrencia(idOcorrencia, _transaction) {
+    const sql = `delete from ocorrencia_historico where id_ocorrencia = $1`;
+
+    return this.query(sql, [idOcorrencia], _transaction);
+  }
+
+  alteraFlagEncerramentoAutomatico(idOcorrencia, flagEncerramentoAutomatico, dataFinal) {
+    const sql = `update ocorrencia set flag_encerramento_automatico = $2, data_hora_final = $3 where id_ocorrencia = $1`;
+
+    return this.query(sql, [idOcorrencia, flagEncerramentoAutomatico, dataFinal]);
+  }
+
+  alteraDataCadastroOcorrencia(idOcorrencia) {
+    const sql = `update ocorrencia set data_hora_cadastro = now() where id_ocorrencia = $1`;
+
+    return this.query(sql, [idOcorrencia]);
+  }
+
+  buscaDetalheEncerramentoOcorrencia(idOcorrencia, _transaction) {
+    const sql = `select flag_encerramento_automatico from ocorrencia where id_ocorrencia = $1 `;
+    return this.queryFindOne(sql, [idOcorrencia], _transaction);
+  }
+
 }
 
-module.exports = OcorrenciaDao;
+module.exports = OcorrenciaDao; 
