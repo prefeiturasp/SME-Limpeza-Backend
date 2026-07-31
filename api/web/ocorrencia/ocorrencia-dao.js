@@ -491,6 +491,23 @@ class OcorrenciaDao extends GenericDao {
     return this.query(sql, [idOcorrencia], _transaction);
   }
 
+  alteraFlagEncerramentoAutomatico(idOcorrencia, flagEncerramentoAutomatico, dataFinal) {
+    const sql = `update ocorrencia set flag_encerramento_automatico = $2, data_hora_final = $3 where id_ocorrencia = $1`;
+
+    return this.query(sql, [idOcorrencia, flagEncerramentoAutomatico, dataFinal]);
+  }
+
+  alteraDataCadastroOcorrencia(idOcorrencia) {
+    const sql = `update ocorrencia set data_hora_cadastro = now() where id_ocorrencia = $1`;
+
+    return this.query(sql, [idOcorrencia]);
+  }
+
+  buscaDetalheEncerramentoOcorrencia(idOcorrencia, _transaction) {
+    const sql = `select flag_encerramento_automatico from ocorrencia where id_ocorrencia = $1 `;
+    return this.queryFindOne(sql, [idOcorrencia], _transaction);
+  }
+
 }
 
-module.exports = OcorrenciaDao;
+module.exports = OcorrenciaDao; 
