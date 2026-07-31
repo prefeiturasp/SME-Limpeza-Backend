@@ -4,6 +4,7 @@ const service = require('./ocorrencia-service');
 
 router.route('/tabela').get(service.tabela);
 router.route('/reincidencia-por-prestador').get(service.reincidenciaPorPrestador);
+router.route('/historico-ocorrencia/:id').get((req, res) => service.buscaTodoHistoricoOcorrencia(req, res));
 router.route('/ultimos').get(service.buscarUltimos);
 router.route('/exportar').get(service.exportar);
 router.route('/:id').get(service.buscar);

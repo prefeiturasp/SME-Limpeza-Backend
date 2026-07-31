@@ -53,3 +53,12 @@ exports.verificarEmailAtivo = async (parametro) => {
     const config = await conn.findOne(sql, [parametro]);
     return config;
 };
+
+
+exports.gerarRetornoCSV = async function(res, csvString, filename = 'export.csv') {
+  res.setHeader('Content-disposition', `attachment; filename=${filename}.csv`);
+  res.set('Content-Type', 'text/csv; charset=utf-8');
+  return res.status(200).send(csvString);
+}
+
+

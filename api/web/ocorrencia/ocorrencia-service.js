@@ -35,6 +35,7 @@ exports.reabrir = reabrir;
 exports.remover = remover;
 exports.reincidenciaPorPrestador = reincidenciaPorPrestador;
 exports.buscarUltimos = buscarUltimos;
+exports.buscaTodoHistoricoOcorrencia = buscaTodoHistoricoOcorrencia;
 
 async function buscar(req, res) {
 
@@ -173,6 +174,9 @@ async function inserir(req, res) {
 
   try {
     const idOcorrencia = await dao.insert(_transaction, idOcorrenciaVariavel, observacao, acaoCorretiva, data, idFiscal, idUnidadeEscolar, prestadorServico.idPrestadorServico, idMonitoramento);
+    // função para salvar o historico da ocorrência
+    await dao.salvaHistoricoOcorrencia(idOcorrencia, null, 1, idFiscal, _transaction);
+
     await salvarArquivos(_transaction, idOcorrencia, arquivoList);
 
     //OCORRÊNCIAS RETROATIVAS
@@ -181,6 +185,7 @@ async function inserir(req, res) {
       if(buscaOcorrenciasRetroativaDisponivel.idOcorrenciaRetroativaOcorrencia){
         await dao.updateOcorrenciaRetroativaOcorrencia(buscaOcorrenciasRetroativaDisponivel.idOcorrenciaRetroativaOcorrencia, idOcorrencia, idFiscal, _transaction);
         await dao.finalizaOcorrencia(idOcorrencia, _transaction);
+        await buscaSalvaHistoricoOcorrencia(idOcorrencia, 3, idFiscal);
       } 
       
       //Checa se todas as ocorrencias foram preenchidas
@@ -220,6 +225,7 @@ async function encerrar(req, res) {
   }
 
   const _transaction = await ctrl.iniciarTransaction();
+  const idUsuario = req.userData.idUsuario;
 
   try {
 
@@ -228,7 +234,6 @@ async function encerrar(req, res) {
 
     const idOcorrencia = req.params.id;
     const ocorrencia = await dao.buscar(idOcorrencia);
-    console.log(ocorrencia);
     const dataHora = new Date();
 
     if (!ocorrencia || ocorrencia.dataHoraFinal) {
@@ -242,6 +247,7 @@ async function encerrar(req, res) {
     }
 
     await dao.encerrar(_transaction, idOcorrencia, dataHora, flagGerarDesconto, motivoNaoAtendido);
+    await buscaSalvaHistoricoOcorrencia(idOcorrencia, 4, idUsuario);
 
     const contrato = await unidadeEscolarDao.buscarContrato(ocorrencia.unidadeEscolar.id, ocorrencia.data);
 
@@ -292,6 +298,7 @@ async function reabrir(req, res) {
     return await ctrl.gerarRetornoErro(res);
   }
 
+  const idUsuario = req.userData.idUsuario;
   const idOcorrencia = req.params.id;
 
   try {
@@ -300,6 +307,8 @@ async function reabrir(req, res) {
       return await ctrl.gerarRetornoErro(res);
     }
     await dao.reabrir(idOcorrencia);
+    await buscaSalvaHistoricoOcorrencia(idOcorrencia, 2, idUsuario, 'reabrir');
+
     await ctrl.gerarRetornoOk(res);
   } catch (error) {
     console.log(error);
@@ -345,6 +354,8 @@ async function remover(req, res) {
     // await dao.removerMensagens(idOcorrencia, _transaction);
     await dao.removerVinculoMonitoramento(idOcorrencia, _transaction);
     await dao.remover(idOcorrencia, idUsuarioRemocao, _transaction);
+    // Função para remover o histórico da ocorrência 
+    await dao.removerHistoricoOcorrencia(idOcorrencia, _transaction);
 
     const contrato = await unidadeEscolarDao.buscarContrato(ocorrencia.unidadeEscolar.id, ocorrencia.data);
 
@@ -477,4 +488,45 @@ async function enviarEmailNovaOcorrencia(idOcorrencia, idPrestadorServico) {
 
   ctrl.enviarEmail(destinatario, 'Nova Ocorrência', html);
 
+}
+
+async function buscaTodoHistoricoOcorrencia(req, res) {
+  const idOcorrencia = req.params.id;
+  if (!idOcorrencia) {
+    return await ctrl.gerarRetornoErro(res, 'ID da ocorrência não fornecido.');
+  }
+  const dados = await dao.buscaTodoHistoricoOcorrencia(idOcorrencia);
+  await ctrl.gerarRetornoOk(res, dados);
+  
+}
+
+async function buscaSalvaHistoricoOcorrencia(idOcorrencia, idStatusNovo, idUsuario, tipoSalvamento = '') {
+  const _transaction = await ctrl.iniciarTransaction();
+  try {
+    const historico = await dao.buscaUltimoHistoricoOcorrencia(idOcorrencia, _transaction);
+    if (historico) {
+      if (tipoSalvamento === 'reabrir') {
+        reabreOcorrencia(idOcorrencia, _transaction);
+      } 
+      await dao.salvaHistoricoOcorrencia(idOcorrencia, historico.idStatusNovo, idStatusNovo, idUsuario);
+    } else {
+      if (tipoSalvamento === 'reabrir') {
+        reabreOcorrencia(idOcorrencia, _transaction);
+      }
+      await dao.salvaHistoricoOcorrencia(idOcorrencia, null, idStatusNovo, idUsuario);
+    }
+    await ctrl.finalizarTransaction(true, _transaction);
+  } catch (error) {
+    await ctrl.finalizarTransaction(false, _transaction);
+    throw error;
+  }
+}
+
+
+async function reabreOcorrencia(idOcorrencia, _transaction) {
+  const detalhes = await dao.buscaDetalheEncerramentoOcorrencia(idOcorrencia, _transaction);
+  if (detalhes.flagEncerramentoAutomatico) {
+    await dao.alteraFlagEncerramentoAutomatico(idOcorrencia, false, null);
+  }
+  await dao.alteraDataCadastroOcorrencia(idOcorrencia);
 }
