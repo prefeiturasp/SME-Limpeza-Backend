@@ -508,12 +508,12 @@ async function buscaSalvaHistoricoOcorrencia(idOcorrencia, idStatusNovo, idUsuar
       if (tipoSalvamento === 'reabrir') {
         reabreOcorrencia(idOcorrencia, _transaction);
       } 
-      await dao.salvaHistoricoOcorrencia(idOcorrencia, historico.idStatusNovo, idStatusNovo, idUsuario);
+      await dao.salvaHistoricoOcorrencia(idOcorrencia, historico.idStatusNovo, idStatusNovo, idUsuario, _transaction);
     } else {
       if (tipoSalvamento === 'reabrir') {
         reabreOcorrencia(idOcorrencia, _transaction);
       }
-      await dao.salvaHistoricoOcorrencia(idOcorrencia, null, idStatusNovo, idUsuario);
+      await dao.salvaHistoricoOcorrencia(idOcorrencia, null, idStatusNovo, idUsuario, _transaction);
     }
     await ctrl.finalizarTransaction(true, _transaction);
   } catch (error) {
