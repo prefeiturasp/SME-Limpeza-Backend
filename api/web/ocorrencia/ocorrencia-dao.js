@@ -478,11 +478,11 @@ class OcorrenciaDao extends GenericDao {
     return this.queryFindOne(sql, [idOcorrencia], _transaction);
   }
 
-  salvaHistoricoOcorrencia(idOcorrencia, idStatusAntigo, idStatusNovo, idUsuario) {
+  salvaHistoricoOcorrencia(idOcorrencia, idStatusAntigo, idStatusNovo, idUsuario, _transaction) {
     const sql = `insert into ocorrencia_historico (id_ocorrencia, id_status_antigo, id_status_novo, id_usuario)
     values ($1, $2, $3, $4)`;
 
-    return this.query(sql, [idOcorrencia, idStatusAntigo, idStatusNovo, idUsuario]);
+    return this.query(sql, [idOcorrencia, idStatusAntigo, idStatusNovo, idUsuario], _transaction);
   }
 
   removerHistoricoOcorrencia(idOcorrencia, _transaction) {
