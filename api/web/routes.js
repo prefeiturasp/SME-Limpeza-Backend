@@ -31,6 +31,7 @@ app.group("/api/web", (app) => {
     app.use('/declaracao', require('./declaracao/declaracao-controller'));
     app.use('/feriado', require('./feriado/feriado-controller'));
     app.use('/configuracao', require('./configuracao/configuracao-controller'));
+    app.use('/unidade-escolar-status', require('./unidade-escolar-status/unidade-escolar-status-controller.js'));
 
     app.use('/plano-trabalho/periodicidade', require('./plano-trabalho/periodicidade/periodicidade-controller'));
     app.use('/plano-trabalho/turno', require('./plano-trabalho/turno/turno-controller'));

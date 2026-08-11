@@ -371,16 +371,85 @@ exports.atualizar = async (req, res) => {
 
     }
 
-    await dao.atualizar(_transaction, id, descricao, codigo, dataInicial, dataFinal, nomeResponsavel, emailResponsavel, idPrestadorServico, parseFloat(valorTotal).toFixed(2), numeroPregao, nomeLote, modelo);
+    await dao.atualizar(
+      _transaction,
+      id,
+      descricao,
+      codigo,
+      dataInicial,
+      dataFinal,
+      nomeResponsavel,
+      emailResponsavel,
+      idPrestadorServico,
+      parseFloat(valorTotal).toFixed(2),
+      numeroPregao,
+      nomeLote,
+      modelo
+    );
     await dao.removerUnidadesEscolares(_transaction, id);
     await dao.removerEquipes(_transaction, id);
 
+    function normaVal(v) {
+      if (v === undefined || v === null) return null;
+      const n = Number(v);
+      return Number.isNaN(n) ? String(v) : n;
+    }
+
     for (const unidadeEscolar of unidadeEscolarLista) {
-      await dao.insertUnidadeEscolar(_transaction, id, unidadeEscolar.id, unidadeEscolar.valor, unidadeEscolar.dataInicial, unidadeEscolar.dataFinal);
-      await usuarioDao.insertGestorPrestadorUnidadeEscolar(idPrestadorServico, unidadeEscolar.id, _transaction);
+      const unidadeId = unidadeEscolar.id || unidadeEscolar.idUnidadeEscolar;
+      if (!unidadeId) {
+        console.warn('Unidade sem id (pulando):', unidadeEscolar);
+        continue;
+      }
+
+      await dao.insertUnidadeEscolar(
+        _transaction,
+        id,
+        unidadeId,
+        unidadeEscolar.valor,
+        unidadeEscolar.dataInicial,
+        unidadeEscolar.dataFinal
+      );
+
+      await usuarioDao.insertGestorPrestadorUnidadeEscolar(
+        idPrestadorServico,
+        unidadeId,
+        _transaction
+      );
+
+      const novoStatusRaw =
+        unidadeEscolar.idStatusUnidadeEscolar ??
+        unidadeEscolar.id_status_unidade_escolar;
+
+      const novoStatus = normaVal(novoStatusRaw);
+      const motivo = unidadeEscolar.motivoStatus || unidadeEscolar.motivo_status || null;
+
+      console.log(
+        `-- processando UE ${unidadeId} -> novoStatusRaw:`,
+        novoStatusRaw,
+        ' -> novoStatus(normal):',
+        novoStatus,
+        ' motivo:',
+        motivo
+      );
+
+      await unidadeEscolarDao.atualizarStatusNoContrato(
+        _transaction,
+        id,
+        unidadeId,
+        novoStatus,
+        motivo
+      );
 
       for (const eq of unidadeEscolar.equipeLista || []) {
-        await dao.insertEquipe(_transaction, id, unidadeEscolar.id, eq.id, eq.quantidade, eq.valorMensal);
+        await dao.insertEquipe(
+          _transaction,
+          id,
+          unidadeId,
+          eq.id,
+          eq.quantidade,
+          eq.valorMensal
+        );
       }
 
     }

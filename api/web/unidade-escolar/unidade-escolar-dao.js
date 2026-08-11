@@ -54,14 +54,55 @@ class UnidadeEscolarDao extends GenericDao {
   buscarDetalhe(id) {
 
     const sql = `
-      select ue.id_unidade_escolar as id, ue.descricao, ue.codigo, ue.endereco, ue.numero, ue.bairro, ue.cep, ue.latitude, ue.longitude,
-        ue.email, ue.telefone, ue.flag_ativo, ue.responsavel_legal_lista, te.descricao as tipo,
+      select 
+        ue.id_unidade_escolar as id,
+        ue.descricao,
+        ue.codigo,
+        ue.endereco,
+        ue.numero,
+        ue.bairro,
+        ue.cep,
+        ue.latitude,
+        ue.longitude,
+        ue.email,
+        ue.telefone,
+        ue.flag_ativo,
+        ue.responsavel_legal_lista,
+
+        -- prefere o status da relação contrato_unidade_escolar para um contrato ativo (hoje)
+        coalesce(cue.id_status_unidade_escolar, ue.id_status_unidade_escolar) as id_status_unidade_escolar,
+        coalesce(suc.descricao, sue.descricao) as status_descricao,
+        cue.motivo_status as motivo_status,
+
+        te.descricao as tipo,
         json_build_object('id', te.id_tipo_escola, 'descricao', te.descricao) as tipo_escola,
         json_build_object('id', dr.id_diretoria_regional, 'descricao', dr.descricao, 'email', dr.email) as diretoria_regional
       from unidade_escolar ue
-      join diretoria_regional dr on dr.id_diretoria_regional = ue.id_diretoria_regional
-      join tipo_escola te on te.id_tipo_escola = ue.id_tipo_escola
-      where ue.id_unidade_escolar = $1`;
+      
+      join diretoria_regional dr 
+        on dr.id_diretoria_regional = ue.id_diretoria_regional
+      join tipo_escola te 
+        on te.id_tipo_escola = ue.id_tipo_escola
+
+      -- pega uma relação contrato_unidade_escolar ativa (se existir) para a UE (hoje)
+      left join lateral (
+        select *
+        from contrato_unidade_escolar cue2
+        where cue2.id_unidade_escolar = ue.id_unidade_escolar
+          and now()::date between cue2.data_inicial and cue2.data_final
+        order by cue2.data_inicial desc
+        limit 1
+      ) cue on true
+
+      left join status_unidade_escolar suc
+        on suc.id_status_unidade_escolar = cue.id_status_unidade_escolar
+
+      left join status_unidade_escolar sue
+        on sue.id_status_unidade_escolar = ue.id_status_unidade_escolar
+
+      where ue.id_unidade_escolar = $1
+      limit 1;
+    `;
 
     return this.queryFindOne(sql, [id]);
 
