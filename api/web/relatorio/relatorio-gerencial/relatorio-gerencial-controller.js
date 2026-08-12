@@ -12,5 +12,6 @@ router.route('/reverter-aprovacao/:id').post(service.reverterAprovacao);
 router.route('/valor-bruto/:id').patch(service.atualizarValorBruto);
 router.route('/:id').delete(service.remover);
 router.route('/').post(service.inserir);
+router.route('/historicoRG/:id').post(service.buscaHistoricoRG);
 
 module.exports = router;
