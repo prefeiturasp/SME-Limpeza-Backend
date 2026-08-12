@@ -38,13 +38,14 @@ class OcorrenciaDao extends GenericDao {
         json_build_object('id', ps.id_prestador_servico, 'razao_social', ps.razao_social, 'cnpj', ps.cnpj, 'email', ps.email) as prestador_servico,
         coalesce(to_json(oa.arquivos), '[]') as arquivos,
         coalesce(to_json(c.cargos), '[]') as equipe_list,
-        o.data_hora_remocao, u.nome as nome_usuario_remocao
+        o.data_hora_remocao, u.nome as nome_usuario_remocao, uf.nome as nome_usuario_fiscal
       from ocorrencia o 
       join ocorrencia_variavel ov using (id_ocorrencia_variavel)
       join ocorrencia_tipo ot using (id_ocorrencia_tipo)
       join prestador_servico ps using (id_prestador_servico)
       join unidade_escolar ue using (id_unidade_escolar)
       join tipo_escola te on te.id_tipo_escola = ue.id_tipo_escola
+      join usuario uf on uf.id_usuario = o.id_fiscal
       left join arquivos oa on oa.id_ocorrencia = o.id_ocorrencia
       left join cargos c on c.id_ocorrencia = o.id_ocorrencia
       left join usuario u on u.id_usuario = o.id_usuario_remocao

@@ -455,6 +455,7 @@ async function montarMenuGestorSME() {
         { nome: 'Ambientes UE\'s', link: 'plano-trabalho/ambiente/ambiente-unidade-escolar' },
         { nome: 'Configurações', link: 'configuracao' },
         { nome: 'Ocorrência Retroativa', link: 'ocorrencia/ocorrencia-retroativa' },
+        { nome: 'Feriados Gerais', link: 'feriado-geral' }
       ]
     },
     {
