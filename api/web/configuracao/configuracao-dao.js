@@ -58,6 +58,40 @@ class ConfiguracaoDao extends GenericDao {
     return this.query(sql, [valor]);
   }
 
+  async buscarParametrosEmail() {
+    const sql = `
+      SELECT parametro, valor, descricao
+      FROM configuracao
+      WHERE parametro LIKE 'EMAIL_NOTIFICACAO_%'
+      ORDER BY parametro`;
+    return this.queryFindAll(sql);
+  }
+
+  async atualizarParametro(parametro, valor, _transaction) {
+    const sql = `
+      UPDATE configuracao
+      SET valor = $1
+      WHERE parametro = $2`;
+    return this.query(sql, [valor, parametro], _transaction);
+  }
+
+  async buscarListaEmailsParaNotificacoes() {
+    const sql = `
+      SELECT descricao
+      FROM configuracao
+      WHERE parametro = 'EMAIL_NOTIFICACAO_LISTA_EMAILS'`;
+    return this.queryFindOne(sql);
+  }
+
+  async salvarEmailsParaNotificacoes(emails) {
+    const sql = `
+      UPDATE configuracao
+      SET descricao = $1
+      WHERE parametro = 'EMAIL_NOTIFICACAO_LISTA_EMAILS'`;
+    return this.query(sql, [emails]);
+  }
+
+
 }
 
 module.exports = ConfiguracaoDao;

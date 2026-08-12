@@ -13,11 +13,13 @@ class ContratoDao extends GenericDao {
         where id_contrato = $1
       )
       select c.id_contrato as id, c.descricao, c.codigo, c.data_inicial, c.data_final, c.nome_responsavel, c.email_responsavel,
-        c.id_prestador_servico, c.valor_total, c.numero_pregao, c.nome_lote, c.modelo::text, json_agg(u) as unidade_escolar_lista
+        c.id_prestador_servico, c.valor_total, c.numero_pregao, c.nome_lote, c.modelo::text, json_agg(u) as unidade_escolar_lista, c.motivo_status as motivostatuscontrato, sc.id_status_contrato as idstatuscontrato, sc.descricao as descricaostatuscontrato, c.limite_dias_excepcionais
       from contrato c
       left join unidades u using (id_contrato)
+      left join status_contrato sc on sc.id_status_contrato = c.id_status_contrato
       where c.id_contrato = $1
-      group by c.id_contrato, c.descricao, c.codigo, c.data_inicial, c.data_final, c.nome_responsavel, c.email_responsavel
+      group by c.id_contrato, c.descricao, c.codigo, c.data_inicial, c.data_final, c.nome_responsavel, c.email_responsavel, 
+               c.id_prestador_servico, c.valor_total, c.numero_pregao, c.nome_lote, c.modelo, c.motivo_status, sc.id_status_contrato, sc.descricao, c.limite_dias_excepcionais
       order by c.descricao asc
     `, [id]);
   }
@@ -58,14 +60,15 @@ class ContratoDao extends GenericDao {
   datatable(codigo, idPrestadorServico, length, start) {
 
     const sql = `
-      select count(c.*) over() as records_total, c.id_contrato as id, c.descricao, c.codigo, c.data_inicial, c.data_final, c.valor_total,
+      select count(c.*) over() as records_total, c.id_contrato as id, c.descricao, c.codigo, c.data_inicial, c.data_final, c.valor_total, sc.id_status_contrato as idstatuscontrato, sc.descricao as descricaostatuscontrato,
         json_build_object('razao_social', ps.razao_social, 'cnpj', ps.cnpj) as prestador_servico, count(cue) as quantidade_unidades_escolar
       from contrato c
       join prestador_servico ps using (id_prestador_servico)
+      left join status_contrato sc on sc.id_status_contrato = c.id_status_contrato
       left join contrato_unidade_escolar cue on cue.id_contrato = c.id_contrato
       where case when $1::text is null then true else c.codigo ilike ('%' || $1::text || '%') end
         and case when $2::int is null then true else c.id_prestador_servico = $2::int end
-      group by c.id_contrato, c.descricao, c.codigo, c.data_inicial, c.data_final, ps.razao_social, ps.cnpj
+      group by c.id_contrato, c.descricao, c.codigo, c.data_inicial, c.data_final, ps.razao_social, ps.cnpj, descricaostatuscontrato, idstatuscontrato
       order by c.data_inicial desc, c.data_final desc, substring(c.codigo from '([0-9]+)')::bigint asc, c.codigo
       limit $3 offset $4
     `;
@@ -82,11 +85,11 @@ class ContratoDao extends GenericDao {
     `, []);
   }
 
-  insert(_transaction, descricao, codigo, dataInicial, dataFinal, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo) {
+  insert(_transaction, descricao, codigo, dataInicial, dataFinal, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo, limiteDiasExcepcionais) {
     return this.insertWithReturn(`
-      insert into contrato (descricao, codigo, data_inicial, data_final, nome_responsavel, email_responsavel, id_prestador_servico, valor_total, numero_pregao, nome_lote, modelo) 
-      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::int)
-    `, [descricao, codigo, dataInicial, dataFinal, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo], 'id_contrato', _transaction);
+      insert into contrato (descricao, codigo, data_inicial, data_final, nome_responsavel, email_responsavel, id_prestador_servico, valor_total, numero_pregao, nome_lote, modelo, limite_dias_excepcionais) 
+      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::int, $12::int)
+    `, [descricao, codigo, dataInicial, dataFinal, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo, limiteDiasExcepcionais], 'id_contrato', _transaction);
   }
 
   insertUnidadeEscolar(_transaction, id, idUnidadeEscolar, valor, dataInicial, dataFinal) {
@@ -124,13 +127,13 @@ class ContratoDao extends GenericDao {
     `, [idContrato, dataInicial, percentual, true], _transaction);
   }
 
-  atualizar(_transaction, id, descricao, codigo, dataInicial, dataFinal, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo) {
+  atualizar(_transaction, id, descricao, codigo, dataInicial, dataFinal, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo, diasExcepicionais) {
     return this.query(`
       update contrato set descricao = $1, codigo = $2, data_inicial = $3, data_final= $4, nome_responsavel = $5, 
         email_responsavel = $6, id_prestador_servico = $7, valor_total = $8, numero_pregao = $9, nome_lote = $10,
-        modelo = $11::int
-      where id_contrato = $12
-    `, [descricao, codigo, dataInicial, dataFinal, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo, id], _transaction);
+        modelo = $11::int, limite_dias_excepcionais = $12::int
+      where id_contrato = $13
+    `, [descricao, codigo, dataInicial, dataFinal, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo, diasExcepicionais, id], _transaction);
   }
 
   removerUnidadesEscolares(_transaction, idContrato) {
@@ -207,6 +210,37 @@ class ContratoDao extends GenericDao {
 
     return this.queryFindAll(sql, [id]);
 
+  }
+
+  exportarUesPorContrato(id) {
+
+    const sql = `select 
+      ue.codigo as codigoUE,
+      c.valor_total as valor,
+      c.data_inicial as dataInicial,
+      c.data_final as dataFinal
+      from contrato c
+      inner join contrato_unidade_escolar cue ON cue.id_contrato = c.id_contrato
+      inner join unidade_escolar ue ON ue.id_unidade_escolar = cue.id_unidade_escolar
+      where c.id_contrato = $1`;
+
+    return this.queryFindAll(sql, [id]);
+  }
+
+  buscaDiasExcepcionaisContrato(idContrato) {
+
+    const sql = `SELECT id_contrato_unidade_escolar_limite_dias_excepcionais, quantidade_dias_utilizados 
+      FROM contrato_unidade_escolar_limite_dias_excepcionais as cuelde
+      WHERE id_contrato = $1`;
+
+      return this.queryFindAll(sql, [idContrato]);
+  }
+
+  habilitaStatusListaDiasExcepcionais(idContratoUnidadeDiasExcepcionais){
+    const sql = `UPDATE contrato_unidade_escolar_limite_dias_excepcionais
+    SET status = true
+    WHERE id_contrato_unidade_escolar_limite_dias_excepcionais = $1`;
+    return this.query(sql, [idContratoUnidadeDiasExcepcionais]);
   }
 
 }

@@ -17,6 +17,8 @@ exports.tabelaDatasAgendamentoManual = tabelaDatasAgendamentoManual;
 exports.inserir = inserir;
 exports.atualizar = atualizar;
 exports.remover = remover;
+exports.verificaSeDataEferiado = verificaSeDataEferiado;
+
 
 async function buscar(req, res) {
 
@@ -117,6 +119,11 @@ async function inserir(req, res) {
     const idUnidadeEscolar = req.userData.origem.codigo === 'ue' ? req.userData.idOrigemDetalhe : req.body.unidadeEscolar?.id;
     const unidadeEscolar = await unidadeEscolarDao.buscarDetalhe(idUnidadeEscolar);
     const prestadorServico = await unidadeEscolarDao.buscarPrestadorServicoAtual(idUnidadeEscolar, req.body.data);
+
+    if(!prestadorServico){
+      return await ctrl.gerarRetornoOk(res, {resp: false, dataSelelecionada: req.body.data}, 'Você não pode realizar um agendamento, para uma data superior a data de encerramento do contrato.');
+    }
+
     const ambienteUnidadeEscolarList = (req.body.ambienteUnidadeEscolarList || []).filter(t => t.isSelected === true);
     const turnoList = (req.body.turnoList || []).filter(t => t.isSelected === true);
 
@@ -127,11 +134,70 @@ async function inserir(req, res) {
     if (ambienteUnidadeEscolarList.length === 0) {
       return await ctrl.gerarRetornoErro(res, 'Pelo menos um ambiente deve ser informado.');
     }
-
+    
+    let arrIdsMonitoramento = [];
+    
     for (ambienteUnidadeEscolar of ambienteUnidadeEscolarList) {
       for (turno of turnoList) {
         const idMonitoramento = await dao.inserir(prestadorServico.id, idUnidadeEscolar, ambienteUnidadeEscolar.id, 5, turno.id, req.body.descricao, req.body.data);
+        arrIdsMonitoramento.push(idMonitoramento);
         await notificarAgendamentoManual(idMonitoramento, prestadorServico, unidadeEscolar);
+        }
+    }
+
+    if(arrIdsMonitoramento.length > 0){
+      //Veirifica Dias Excepcionais
+      if(req.body.arrDiaExcepcional.verificacao){
+        let quantidadeDiasUtilizados = 0;
+        let verificaDiasExcepcionais = false;
+        let idContratoUeDiaExcepcional = 0;
+        let mensagem = 'Você atingiu o limite de dias excepcionais para o ano da data selecionada.';
+
+        const ultimoDiaAnoSelecionado = moment(req.body.data).clone().endOf('year').format('YYYY-MM-DD');
+        const contratoAtual = await dao.buscaContratoIdUeData(idUnidadeEscolar, req.body.data);
+          
+        if (typeof contratoAtual === 'object' && contratoAtual.limiteDiasExcepcionais > 0) {
+          const diaExcepcional = await dao.buscaDiasExcepcionais(contratoAtual.idContrato, idUnidadeEscolar, req.body.data);
+          if (diaExcepcional) {
+              idContratoUeDiaExcepcional = diaExcepcional.id;
+              quantidadeDiasUtilizados = diaExcepcional.quantidadeDiasUtilizados + 1;
+              if (quantidadeDiasUtilizados > contratoAtual.limiteDiasExcepcionais) {
+                verificaDiasExcepcionais = true;
+              } else {
+                const verificacao1 = await dao.comparaDataLimiteExcepcional(contratoAtual.idContrato, idUnidadeEscolar, ultimoDiaAnoSelecionado);
+                if(verificacao1 && !verificacao1.status){
+                  for(idMonitoramento of arrIdsMonitoramento){
+                    await dao.deleta(idMonitoramento);
+                  }
+                  return await ctrl.gerarRetornoOk(res, {resp: false}, mensagem);
+                } else {
+                  await dao.atualizaDiasExcepcionais(idContratoUeDiaExcepcional, quantidadeDiasUtilizados);
+                }
+              }
+            } else {
+              const verificacao2 = await dao.comparaDataLimiteExcepcional(contratoAtual.idContrato, idUnidadeEscolar, ultimoDiaAnoSelecionado);
+              if(verificacao2){
+                if(!verificacao2.status){
+                  for(idMonitoramento of arrIdsMonitoramento){
+                    await dao.deleta(idMonitoramento);
+                  }
+                  return await ctrl.gerarRetornoOk(res, {resp: false}, mensagem);
+                } else {
+                  await dao.inserirDiasExcepcionais(contratoAtual.idContrato, idUnidadeEscolar, 1, ultimoDiaAnoSelecionado);
+                }
+              } else {
+                await dao.inserirDiasExcepcionais(contratoAtual.idContrato, idUnidadeEscolar, 1, ultimoDiaAnoSelecionado);
+              }
+            }
+          } 
+
+          if(verificaDiasExcepcionais){
+            await dao.desabilitaDiasExcepcionais(idContratoUeDiaExcepcional);
+            for(idMonitoramento of arrIdsMonitoramento){
+              await dao.deleta(idMonitoramento);
+            }
+            return await ctrl.gerarRetornoOk(res, {resp: false}, mensagem);
+          }
       }
     }
 
@@ -182,6 +248,11 @@ async function remover(req, res) {
 
 async function notificarAgendamentoManual(idMonitoramento, prestadorServico, unidadeEscolar) {
 
+  const verificacaoEmailMonitoramento = await ctrl.verificarEmailAtivo('EMAIL_NOTIFICACAO_AGENDAMENTO_MANUAL');
+  if (verificacaoEmailMonitoramento.valor !== 1) {
+    return;
+  }
+
   const linkMonitoramento = process.env.FRONTEND_URL + '/monitoramento/detalhe/' + idMonitoramento;
   const emailUsuarioPrestadorServicoList = (await daoUsuario.buscarPrestadorPorUnidadeEscolar(unidadeEscolar.id)).map(u => u.email);
   const destinatario = prestadorServico.email + ',' + unidadeEscolar.diretoriaRegional.email + ',' + emailUsuarioPrestadorServicoList.join(',');
@@ -199,4 +270,12 @@ async function notificarAgendamentoManual(idMonitoramento, prestadorServico, uni
         E-mail enviado automaticamente, favor não responder.
     `);
 
+}
+
+async function verificaSeDataEferiado(req, res) {
+  if (!req.body.idUnidadeEscolar || !req.body.data) {
+    return await ctrl.gerarRetornoErro(res, 'ID da Unidade Escolar e data são obrigatórios.');
+  }
+  const feriado = await dao.buscaFeriadoUEPorData(req.body.data, req.body.idUnidadeEscolar);
+  return await ctrl.gerarRetornoOk(res, feriado );
 }

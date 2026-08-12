@@ -168,6 +168,21 @@ async function inserir(req, res) {
     const idOcorrencia = await dao.insert(_transaction, idOcorrenciaVariavel, observacao, acaoCorretiva, data, idFiscal, idUnidadeEscolar, prestadorServico.idPrestadorServico, idMonitoramento);
     await salvarArquivos(_transaction, idOcorrencia, arquivoList);
 
+    //OCORRÊNCIAS RETROATIVAS
+    if(idOcorrencia && req.body.flagOcorrenciaRetroativa === true){
+      const buscaOcorrenciasRetroativaDisponivel = await dao.buscaOcorrenciasRetroativaDisponiveis(req.body.idOcorrenciaRetroativa, _transaction);
+      if(buscaOcorrenciasRetroativaDisponivel.idOcorrenciaRetroativaOcorrencia){
+        await dao.updateOcorrenciaRetroativaOcorrencia(buscaOcorrenciasRetroativaDisponivel.idOcorrenciaRetroativaOcorrencia, idOcorrencia, idFiscal, _transaction);
+        await dao.finalizaOcorrencia(idOcorrencia, _transaction);
+      } 
+      
+      //Checa se todas as ocorrencias foram preenchidas
+      const checkagem = await dao.buscaOcorrenciasRetroativaDisponiveis(req.body.idOcorrenciaRetroativa, _transaction);
+      if(!checkagem){
+        await dao.updateOcorrenciaRetroativa(req.body.idOcorrenciaRetroativa, _transaction);
+      }
+    }
+
     if (idMonitoramento) {
       await monitoramentoDao.setarOcorrencia(_transaction, idMonitoramento, idOcorrencia);
     }
@@ -412,6 +427,11 @@ async function salvarArquivos(_transaction, idOcorrencia, arquivoList) {
 }
 
 async function enviarEmailNovaOcorrencia(idOcorrencia) {
+
+  const verificacaoEmailOcorrencia = await ctrl.verificarEmailAtivo('EMAIL_NOTIFICACAO_OCORRENCIA');
+  if (verificacaoEmailOcorrencia.valor !== 1) {
+    return;
+  }
 
   const ocorrencia = await dao.buscar(idOcorrencia);
   const diretoriaRegional = await diretoriaRegionalDao.buscar(ocorrencia.unidadeEscolar.idDiretoriaRegional);

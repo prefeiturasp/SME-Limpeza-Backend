@@ -255,7 +255,7 @@ exports.carregarArquivoCargo = async (req, res) => {
 
 exports.inserir = async (req, res) => {
 
-  const { descricao, codigo, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo } = req.body;
+  const { descricao, codigo, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo, limiteDiasExcepcionais } = req.body;
 
   const unidadeEscolarLista = req.body.unidadeEscolarLista || [];
   const reajusteLista = (req.body.reajusteLista || []).filter(v => v.flagAtivo === true);
@@ -299,10 +299,11 @@ exports.inserir = async (req, res) => {
 
     }
 
-    const idContrato = await dao.insert(_transaction, descricao, codigo, dataInicial, dataFinal, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo);
+    const idContrato = await dao.insert(_transaction, descricao, codigo, dataInicial, dataFinal, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo, limiteDiasExcepcionais);
 
     for (let unidadeEscolar of unidadeEscolarLista) {
       await dao.insertUnidadeEscolar(_transaction, idContrato, unidadeEscolar.id, unidadeEscolar.valor, unidadeEscolar.dataInicial, unidadeEscolar.dataFinal);
+
       unidadeEscolarLista.map(async (ue) => await usuarioDao.insertGestorPrestadorUnidadeEscolar(idPrestadorServico, unidadeEscolar.id, _transaction));
     }
 
@@ -323,7 +324,7 @@ exports.inserir = async (req, res) => {
 
 exports.atualizar = async (req, res) => {
 
-  const { id, descricao, codigo, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo } = req.body;
+  const { id, descricao, codigo, nomeResponsavel, emailResponsavel, idPrestadorServico, valorTotal, numeroPregao, nomeLote, modelo, limiteDiasExcepcionais } = req.body;
 
   if (req.params.id != id) {
     return await ctrl.gerarRetornoErro(res);
@@ -371,18 +372,99 @@ exports.atualizar = async (req, res) => {
 
     }
 
-    await dao.atualizar(_transaction, id, descricao, codigo, dataInicial, dataFinal, nomeResponsavel, emailResponsavel, idPrestadorServico, parseFloat(valorTotal).toFixed(2), numeroPregao, nomeLote, modelo);
+    await dao.atualizar(
+      _transaction,
+      id,
+      descricao,
+      codigo,
+      dataInicial,
+      dataFinal,
+      nomeResponsavel,
+      emailResponsavel,
+      idPrestadorServico,
+      parseFloat(valorTotal).toFixed(2),
+      numeroPregao,
+      nomeLote,
+      modelo,
+      limiteDiasExcepcionais
+    );
+
+    const buscaDiasExcepcionaisContrato = await dao.buscaDiasExcepcionaisContrato(id);
+    if (buscaDiasExcepcionaisContrato.length > 0) {
+
+      buscaDiasExcepcionaisContrato.forEach(element => {
+        if(element.quantidadeDiasUtilizados < limiteDiasExcepcionais){
+          dao.habilitaStatusListaDiasExcepcionais(element.idContratoUnidadeEscolarLimiteDiasExcepcionais);
+        }
+      });
+      
+    }
+    
     await dao.removerUnidadesEscolares(_transaction, id);
     await dao.removerEquipes(_transaction, id);
 
-    for (const unidadeEscolar of unidadeEscolarLista) {
-      await dao.insertUnidadeEscolar(_transaction, id, unidadeEscolar.id, unidadeEscolar.valor, unidadeEscolar.dataInicial, unidadeEscolar.dataFinal);
-      await usuarioDao.insertGestorPrestadorUnidadeEscolar(idPrestadorServico, unidadeEscolar.id, _transaction);
+    function normaVal(v) {
+      if (v === undefined || v === null) return null;
+      const n = Number(v);
+      return Number.isNaN(n) ? String(v) : n;
+    }
 
-      for (const eq of unidadeEscolar.equipeLista || []) {
-        await dao.insertEquipe(_transaction, id, unidadeEscolar.id, eq.id, eq.quantidade, eq.valorMensal);
+    for (const unidadeEscolar of unidadeEscolarLista) {
+      const unidadeId = unidadeEscolar.id || unidadeEscolar.idUnidadeEscolar;
+      if (!unidadeId) {
+        console.warn('Unidade sem id (pulando):', unidadeEscolar);
+        continue;
       }
 
+      await dao.insertUnidadeEscolar(
+        _transaction,
+        id,
+        unidadeId,
+        unidadeEscolar.valor,
+        unidadeEscolar.dataInicial,
+        unidadeEscolar.dataFinal
+      );
+
+      await usuarioDao.insertGestorPrestadorUnidadeEscolar(
+        idPrestadorServico,
+        unidadeId,
+        _transaction
+      );
+
+      const novoStatusRaw =
+        unidadeEscolar.idStatusUnidadeEscolar ??
+        unidadeEscolar.id_status_unidade_escolar;
+
+      const novoStatus = normaVal(novoStatusRaw);
+      const motivo = unidadeEscolar.motivoStatus || unidadeEscolar.motivo_status || null;
+
+      console.log(
+        `-- processando UE ${unidadeId} -> novoStatusRaw:`,
+        novoStatusRaw,
+        ' -> novoStatus(normal):',
+        novoStatus,
+        ' motivo:',
+        motivo
+      );
+
+      // await unidadeEscolarDao.atualizarStatusNoContrato(
+      //   _transaction,
+      //   id,
+      //   unidadeId,
+      //   novoStatus,
+      //   motivo
+      // );
+
+      for (const eq of unidadeEscolar.equipeLista || []) {
+        await dao.insertEquipe(
+          _transaction,
+          id,
+          unidadeId,
+          eq.id,
+          eq.quantidade,
+          eq.valorMensal
+        );
+      }
     }
 
     await usuarioDao.removerPrestadorUnidadeEscolarSemContrato(_transaction);
@@ -436,5 +518,41 @@ exports.remover = async (req, res) => {
     await ctrl.finalizarTransaction(false, _transaction);
     return await ctrl.gerarRetornoErro(res);
   }
-
+  
 }
+
+exports.exportarUesPorContrato = async (req, res) => {
+
+    const idContrato = req.body.idContrato;
+
+    if (!idContrato) {
+        return await ctrl.gerarRetornoErro(res, 'ID do contrato é obrigatório.');
+    }
+
+    try {
+
+        const resultados = await dao.exportarUesPorContrato(idContrato);
+
+        let csv = 'codigo;valor;data_inicial;data_final\n';
+
+        resultados.forEach(item => {
+            const codigo = parseInt(item.codigoue);
+            const dataIni = moment(item.dataInicial).format('DD/MM/YYYY');
+            const dataFim = moment(item.dataFinal).format('DD/MM/YYYY');
+            const valor = item.valor ? item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '0,00';
+            csv += `${codigo};${valor};${dataIni};${dataFim}\n`;
+        });
+
+        const arquivo = {
+            name: `unidades_escolares_contrato_${idContrato}`,
+            buffer: Buffer.from(csv),
+            extension: 'csv'
+        };
+
+        return await ctrl.gerarRetornoOk(res, arquivo);
+    } catch (e) {
+        console.error(e);
+        return await ctrl.gerarRetornoErro(res, 'Erro ao exportar unidades escolares.');
+    }
+
+};

@@ -32,6 +32,16 @@ app.group("/api/web", (app) => {
     app.use('/feriado', require('./feriado/feriado-controller'));
     app.use('/configuracao', require('./configuracao/configuracao-controller'));
 
+    app.use('/unidade-escolar-status', require('./unidade-escolar-status/unidade-escolar-status-controller.js'));
+    app.use('/historicoStatusUE', require('./unidade-escolar-status/unidade-escolar-status-controller.js'));
+    app.use('/salvaHistoricoStatusUE', require('./unidade-escolar-status/unidade-escolar-status-controller.js'));
+
+    app.use('/contrato-status', require('./contrato/contrato-status/contrato-status-controller.js'));
+    app.use('/historicoStatusContrato', require('./contrato/contrato-status/contrato-status-controller.js'));
+    app.use('/atualizarStatusContrato', require('./contrato/contrato-status/contrato-status-controller.js'));
+    app.use('/buscarIdUsuPorEmail', require('./contrato/contrato-status/contrato-status-controller.js'));
+    app.use('/salvaHistoricoStatusContrato', require('./contrato/contrato-status/contrato-status-controller.js'));
+  
     app.use('/plano-trabalho/periodicidade', require('./plano-trabalho/periodicidade/periodicidade-controller'));
     app.use('/plano-trabalho/turno', require('./plano-trabalho/turno/turno-controller'));
     app.use('/plano-trabalho/ambiente/tipo-ambiente', require('./plano-trabalho/ambiente/tipo-ambiente/tipo-ambiente-controller'));
@@ -47,6 +57,7 @@ app.group("/api/web", (app) => {
     app.use('/ocorrencia/ocorrencia-tipo', require('./ocorrencia/ocorrencia-tipo/ocorrencia-tipo-controller'));
     app.use('/ocorrencia/ocorrencia-situacao', require('./ocorrencia/ocorrencia-situacao/ocorrencia-situacao-controller'));
     app.use('/ocorrencia/ocorrencia-variavel', require('./ocorrencia/ocorrencia-variavel/ocorrencia-variavel-controller'));
+    app.use('/ocorrencia/ocorrencia-retroativa', require('./ocorrencia/ocorrencia-retroativa/ocorrencia-retroativa-controller'));
 
     app.use('/relatorio/relatorio-gerencial', require('./relatorio/relatorio-gerencial/relatorio-gerencial-controller'));
     app.use('/relatorio/relatorio-contrato', require('./relatorio/relatorio-contrato/relatorio-contrato-controller'));
@@ -54,6 +65,8 @@ app.group("/api/web", (app) => {
     app.use('/relatorio/relatorio-ocorrencia-funcionario', require('./relatorio/relatorio-ocorrencia-funcionario/relatorio-ocorrencia-funcionario-controller'));
     app.use('/relatorio/relatorio-equipe', require('./relatorio/relatorio-equipe/relatorio-equipe-controller'));
     app.use('/relatorio/relatorio-equipe-contrato', require('./relatorio/relatorio-equipe-contrato/relatorio-equipe-contrato-controller'));
+
+    app.use('/feriado-geral', require('./feriado-geral/feriado-geral-controller'));
 
 });
 

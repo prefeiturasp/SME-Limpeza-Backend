@@ -454,6 +454,8 @@ async function montarMenuGestorSME() {
         { nome: 'Ambientes Gerais', link: 'plano-trabalho/ambiente/ambiente-geral' },
         { nome: 'Ambientes UE\'s', link: 'plano-trabalho/ambiente/ambiente-unidade-escolar' },
         { nome: 'Configurações', link: 'configuracao' },
+        { nome: 'Ocorrência Retroativa', link: 'ocorrencia/ocorrencia-retroativa' },
+        { nome: 'Feriados Gerais', link: 'feriado-geral' }
       ]
     },
     {
@@ -744,9 +746,26 @@ async function enviarEmailAtualizacaoFiscal(usuarioLogado, idUsuarioStatusAtual,
 
 async function enviarEmailEventoFiscal(assuntoEmail, usuarioLogado, nomeFiscal, emailFiscal, idUnidadeEscolar, urlNomeacao) {
 
+  const verificacaoEmailFiscal = await ctrl.verificarEmailAtivo('EMAIL_NOTIFICACAO_FISCAL');
+  if (verificacaoEmailFiscal.valor !== 1) {
+    return;
+  }
+
   const unidadeEscolar = await unidadeEscolarDao.buscarDetalhe(idUnidadeEscolar);
-  const usuariosSME = await dao.comboPorOrigem(UsuarioOrigemConstants.SME);
-  const destinatarios = usuariosSME.reduce((string, user) => (string + user.email + ';'), (unidadeEscolar.diretoriaRegional.email + ';'));
+  let destinatarios = '';
+  
+  const verificacaoListaEmails = await ctrl.verificarEmailAtivo('EMAIL_NOTIFICACAO_LISTA_EMAILS');
+  if (verificacaoListaEmails.valor === 1 && verificacaoListaEmails.descricao) {
+
+    const emailsSME = verificacaoListaEmails.descricao.split(';');
+    destinatarios = emailsSME.reduce((string, email) => (string + email + ';'), (unidadeEscolar.diretoriaRegional.email + ';'));
+
+  } else {
+
+    const usuariosSME = await dao.comboPorOrigem(UsuarioOrigemConstants.SME);
+    destinatarios = usuariosSME.reduce((string, user) => (string + user.email + ';'), (unidadeEscolar.diretoriaRegional.email + ';'));
+
+  }
 
   const html = `
         <br><b>Usuário Logado:</b> ${usuarioLogado.nome}
