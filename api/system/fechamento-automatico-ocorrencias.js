@@ -165,6 +165,11 @@ module.exports = async (req, res) => {
 };
 
 async function enviarEmailErro() {
+  const config = await conn.findOne(`select valor from configuracao where parametro = 'EMAIL_NOTIFICACAO_ERRO_SISTEMA'`);
+  if (config.valor !== 1) {
+    return;
+  }
+  
   const assunto = 'ERRO | Cron - Encerrar ocorrencias automaticamente por prazo';
   const html = `
     <br>
