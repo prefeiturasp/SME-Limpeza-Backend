@@ -160,6 +160,78 @@ class MonitoramentoDao extends GenericDao {
 
   }
 
+  buscaFeriadoUEPorData(data, idUnidadeEscolar) {
+    const sql = `
+      SELECT id_feriado, data, descricao
+      FROM feriado
+      WHERE data = $1 AND id_unidade_escolar = $2
+      LIMIT 1;`;
+    return this.queryFindOne(sql, [data, idUnidadeEscolar]);
+  }
+
+  buscaContratoIdUeData(idUnidadeEscolar, data) {
+
+    const sql = `
+      with cue as (
+        select * from contrato_unidade_escolar
+        where id_unidade_escolar = $1 and $2::date between data_inicial and data_final
+      )
+      select c.id_contrato, c.limite_dias_excepcionais
+      from contrato c
+      join cue using (id_contrato)`;
+
+    return this.queryFindOne(sql, [idUnidadeEscolar, data]);
+
+  }
+
+  buscaDiasExcepcionais(idContrato, idUnidadeEscolar, data) {
+    const sql = `
+      SELECT culde.id_contrato_unidade_escolar_limite_dias_excepcionais as id, culde.quantidade_dias_utilizados, c.limite_dias_excepcionais as dias_excepcionais
+      FROM contrato_unidade_escolar_limite_dias_excepcionais culde
+      JOIN contrato c on (c.id_contrato = culde.id_contrato)
+      WHERE culde.id_contrato = $1 
+      AND culde.id_unidade_escolar = $2 
+      AND (DATE_TRUNC('month', CAST($3 AS DATE)) + INTERVAL '1 month' - INTERVAL '1 day')::DATE = culde.validade
+      AND culde.status = true
+      LIMIT 1`;
+    return this.queryFindOne(sql, [idContrato, idUnidadeEscolar, data]);
+  }
+
+  inserirDiasExcepcionais(idContrato, idUnidadeEscolar, quantidadeUtilizada, validade) {
+    const sql = `INSERT INTO contrato_unidade_escolar_limite_dias_excepcionais (id_contrato, id_unidade_escolar, quantidade_dias_utilizados, validade)
+      VALUES ($1, $2, $3, $4)`;
+    return this.query(sql, [idContrato, idUnidadeEscolar, quantidadeUtilizada, validade]);
+  }
+
+  atualizaDiasExcepcionais(idContratoUeDiaExcepcional, quantidadeUtilizada) {
+    const sql = `UPDATE contrato_unidade_escolar_limite_dias_excepcionais
+      SET quantidade_dias_utilizados = $2
+      WHERE id_contrato_unidade_escolar_limite_dias_excepcionais = $1`;
+
+      return this.query(sql, [idContratoUeDiaExcepcional, quantidadeUtilizada]);
+  }
+
+  desabilitaDiasExcepcionais(idContratoUeDiaExcepcional) {
+    const sql = `UPDATE contrato_unidade_escolar_limite_dias_excepcionais
+      SET status = false
+      WHERE id_contrato_unidade_escolar_limite_dias_excepcionais = $1`;  
+      return this.query(sql, [idContratoUeDiaExcepcional]);
+  }
+
+  comparaDataLimiteExcepcional(idContrato, idUnidadeEscolar, utimoDiaMes) {
+ 
+    const sql = `
+      SELECT id_contrato_unidade_escolar_limite_dias_excepcionais as id, validade, status
+      FROM contrato_unidade_escolar_limite_dias_excepcionais
+      WHERE id_contrato = $1 AND id_unidade_escolar = $2 AND validade = $3`;
+      return this.queryFindOne(sql, [idContrato, idUnidadeEscolar, utimoDiaMes]);
+  }
+
+  deleta(idMonitoramento) {
+    const sql = `DELETE FROM monitoramento WHERE id_monitoramento = $1`;
+    return this.query(sql, [idMonitoramento]);
+  } 
+
 }
 
 module.exports = MonitoramentoDao;

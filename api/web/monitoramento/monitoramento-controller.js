@@ -9,5 +9,7 @@ router.route('/').post(service.inserir);
 router.route('/:id').patch(service.atualizar);
 router.route('/:id').delete(service.remover);
 
+router.route('/verificaSeDataEferiado').post(service.verificaSeDataEferiado);
+
 module.exports = router;
  
