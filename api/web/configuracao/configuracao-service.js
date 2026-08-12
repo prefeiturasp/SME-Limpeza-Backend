@@ -33,3 +33,18 @@ exports.atualizar = async (req, res) => {
   return await ctrl.gerarRetornoOk(res);
 
 }
+
+exports.buscaManutencaoSistema = async (req, res) => {
+  return await ctrl.gerarRetornoOk(res, await dao.buscaManutencaoSistema());
+}
+
+exports.salvaManutencaoSistema = async (req, res) => {
+  if (req.userData.origem.codigo !== 'sme') {
+    return await ctrl.gerarRetornoErro(res);
+  }
+  let retorno = await dao.salvaManutencaoSistema(req.body.manutencao);
+  return await ctrl.gerarRetornoOk(res, retorno);
+}
+
+module.exports = exports;
+
