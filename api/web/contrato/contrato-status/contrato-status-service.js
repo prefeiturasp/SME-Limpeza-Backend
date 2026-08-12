@@ -8,5 +8,17 @@ exports.comboStaContrato = async (req, res) => {
 };
 
 exports.atualizarStatusContrato = async (req, res) => {
-  return await ctrl.gerarRetornoOk(res, await dao.atualizarStatusContrato(req.body.idContrato, req.body.idStatusContrato, req.body.motivoStatusContrato));
+  return await ctrl.gerarRetornoOk(res, await dao.atualizarStatusContrato(req.body.idContrato, req.body.idStatusContrato, req.body.motivoStatusContrato)); 
 };
+
+exports.historicoStatusContrato = async (req, res) => {
+  return await ctrl.gerarRetornoOk(res, await dao.historicoStatusContrato(req.body.idContrato));
+};
+
+exports.buscarIdUsuPorEmail = async (req, res) => {
+  return await ctrl.gerarRetornoOk(res, await dao.buscarIdUsuPorEmail(req.body.emailUsu));
+}
+
+exports.salvaHistoricoStatusContrato = async (req, res) => {
+  return await ctrl.gerarRetornoOk(res, await dao.salvaHistoricoStatusContrato(req.body.idContrato, req.body.statusAntigo, req.body.statusNovo, req.body.motivoStatus, req.body.idUsu));
+}

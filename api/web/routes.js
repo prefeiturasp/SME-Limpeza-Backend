@@ -31,10 +31,16 @@ app.group("/api/web", (app) => {
     app.use('/declaracao', require('./declaracao/declaracao-controller'));
     app.use('/feriado', require('./feriado/feriado-controller'));
     app.use('/configuracao', require('./configuracao/configuracao-controller'));
-    app.use('/unidade-escolar-status', require('./unidade-escolar-status/unidade-escolar-status-controller.js'));
-    app.use('/contrato-status', require('./contrato/contrato-status/contrato-status-controller.js'));
-    app.use('/atualizarStatusContrato', require('./contrato/contrato-status/contrato-status-controller.js'));
 
+    app.use('/unidade-escolar-status', require('./unidade-escolar-status/unidade-escolar-status-controller.js'));
+    app.use('/historicoStatusUE', require('./unidade-escolar-status/unidade-escolar-status-controller.js'));
+    app.use('/salvaHistoricoStatusUE', require('./unidade-escolar-status/unidade-escolar-status-controller.js'));
+
+    app.use('/contrato-status', require('./contrato/contrato-status/contrato-status-controller.js'));
+    app.use('/historicoStatusContrato', require('./contrato/contrato-status/contrato-status-controller.js'));
+    app.use('/atualizarStatusContrato', require('./contrato/contrato-status/contrato-status-controller.js'));
+    app.use('/buscarIdUsuPorEmail', require('./contrato/contrato-status/contrato-status-controller.js'));
+    app.use('/salvaHistoricoStatusContrato', require('./contrato/contrato-status/contrato-status-controller.js'));
     app.use('/plano-trabalho/periodicidade', require('./plano-trabalho/periodicidade/periodicidade-controller'));
     app.use('/plano-trabalho/turno', require('./plano-trabalho/turno/turno-controller'));
     app.use('/plano-trabalho/ambiente/tipo-ambiente', require('./plano-trabalho/ambiente/tipo-ambiente/tipo-ambiente-controller'));
