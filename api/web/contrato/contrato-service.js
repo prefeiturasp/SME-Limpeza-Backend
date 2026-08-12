@@ -447,13 +447,13 @@ exports.atualizar = async (req, res) => {
         motivo
       );
 
-      await unidadeEscolarDao.atualizarStatusNoContrato(
-        _transaction,
-        id,
-        unidadeId,
-        novoStatus,
-        motivo
-      );
+      // await unidadeEscolarDao.atualizarStatusNoContrato(
+      //   _transaction,
+      //   id,
+      //   unidadeId,
+      //   novoStatus,
+      //   motivo
+      // );
 
       for (const eq of unidadeEscolar.equipeLista || []) {
         await dao.insertEquipe(
