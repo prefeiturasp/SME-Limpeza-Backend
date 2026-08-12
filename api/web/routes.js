@@ -41,6 +41,7 @@ app.group("/api/web", (app) => {
     app.use('/atualizarStatusContrato', require('./contrato/contrato-status/contrato-status-controller.js'));
     app.use('/buscarIdUsuPorEmail', require('./contrato/contrato-status/contrato-status-controller.js'));
     app.use('/salvaHistoricoStatusContrato', require('./contrato/contrato-status/contrato-status-controller.js'));
+  
     app.use('/plano-trabalho/periodicidade', require('./plano-trabalho/periodicidade/periodicidade-controller'));
     app.use('/plano-trabalho/turno', require('./plano-trabalho/turno/turno-controller'));
     app.use('/plano-trabalho/ambiente/tipo-ambiente', require('./plano-trabalho/ambiente/tipo-ambiente/tipo-ambiente-controller'));
@@ -56,6 +57,7 @@ app.group("/api/web", (app) => {
     app.use('/ocorrencia/ocorrencia-tipo', require('./ocorrencia/ocorrencia-tipo/ocorrencia-tipo-controller'));
     app.use('/ocorrencia/ocorrencia-situacao', require('./ocorrencia/ocorrencia-situacao/ocorrencia-situacao-controller'));
     app.use('/ocorrencia/ocorrencia-variavel', require('./ocorrencia/ocorrencia-variavel/ocorrencia-variavel-controller'));
+    app.use('/ocorrencia/ocorrencia-retroativa', require('./ocorrencia/ocorrencia-retroativa/ocorrencia-retroativa-controller'));
 
     app.use('/relatorio/relatorio-gerencial', require('./relatorio/relatorio-gerencial/relatorio-gerencial-controller'));
     app.use('/relatorio/relatorio-contrato', require('./relatorio/relatorio-contrato/relatorio-contrato-controller'));

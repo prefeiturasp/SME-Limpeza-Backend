@@ -454,6 +454,7 @@ async function montarMenuGestorSME() {
         { nome: 'Ambientes Gerais', link: 'plano-trabalho/ambiente/ambiente-geral' },
         { nome: 'Ambientes UE\'s', link: 'plano-trabalho/ambiente/ambiente-unidade-escolar' },
         { nome: 'Configurações', link: 'configuracao' },
+        { nome: 'Ocorrência Retroativa', link: 'ocorrencia/ocorrencia-retroativa' },
       ]
     },
     {

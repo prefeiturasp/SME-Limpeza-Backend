@@ -33,6 +33,7 @@ class OcorrenciaDao extends GenericDao {
       )
       select o.id_ocorrencia as id, o.data, ot.descricao as tipo, o.data_hora_cadastro, o.id_monitoramento, o.flag_gerar_desconto, 
         to_json(ov) as variavel, o.acao_corretiva, o.observacao, o.data_hora_final is not null as flag_encerrado, o.data_hora_final, o.flag_encerramento_automatico, o.observacao_final, 
+        exists (select 1 from ocorrencia_retroativa ocr where ocr.id_ocorrencia = o.id_ocorrencia) as flag_ocorrencia_retroativa,
         json_build_object('id', ue.id_unidade_escolar, 'descricao', ue.descricao, 'codigo', ue.codigo, 'id_diretoria_regional', ue.id_diretoria_regional, 'endereco', ue.endereco || ', ' || ue.numero || ' - ' || ue.bairro, 'latitude', ue.latitude, 'longitude', ue.longitude, 'tipo', te.descricao) as unidade_escolar,
         json_build_object('id', ps.id_prestador_servico, 'razao_social', ps.razao_social, 'cnpj', ps.cnpj, 'email', ps.email) as prestador_servico,
         coalesce(to_json(oa.arquivos), '[]') as arquivos,
@@ -278,7 +279,7 @@ class OcorrenciaDao extends GenericDao {
   }
 
   exportar(idUsuario, ehPrestadorServico, idPrestadorServico, idUnidadeEscolar, idOcorrenciaTipo, dataInicial, dataFinal, flagEncerrado, flagSomenteAtivos, idContratoList, idDiretoriaRegional) {
-
+    
     const sql = `
       with unidades as (
         select distinct(id_unidade_escolar)
@@ -292,11 +293,10 @@ class OcorrenciaDao extends GenericDao {
       case when aue.descricao is not null then aue.descricao else ' - ' end as ambiente,
       case 
           when o.flag_encerramento_automatico is true then 'Automaticamente'
-          when o.data_hora_final is null then 'Não' else 'Sim'
+          when o.flag_encerrado is true then 'Sim'
+          else 'Não'
       end as encerrado,
-      case 
-        when o.data_hora_final is not null and o.flag_gerar_desconto is false then 'Sim' else 'Não' 
-      end as atendido
+      case when o.flag_encerrado is true and o.flag_gerar_desconto is false then 'Sim' else 'Não' end as atendido
       from unidades u
       join ocorrencia o using (id_unidade_escolar)
       left join monitoramento using (id_monitoramento)
@@ -424,6 +424,13 @@ class OcorrenciaDao extends GenericDao {
 
     return this.query(sql, [idOcorrencia]);
 
+  }
+
+  updateOcorrenciaRetroativa(idOcorrenciaRetroativa, idOcorrencia, idUsuario, _transaction) {
+    const sql = `update ocorrencia_retroativa set id_ocorrencia = $2, id_prestador_servico = $3, status_ocorrencia_retroativa = 'I' 
+    where id_ocorrencia_retroativa = $1`;
+
+    return this.query(sql, [idOcorrenciaRetroativa, idOcorrencia, idUsuario], _transaction);
   }
 
 }

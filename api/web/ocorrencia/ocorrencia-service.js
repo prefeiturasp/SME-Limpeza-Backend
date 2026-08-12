@@ -168,6 +168,10 @@ async function inserir(req, res) {
     const idOcorrencia = await dao.insert(_transaction, idOcorrenciaVariavel, observacao, acaoCorretiva, data, idFiscal, idUnidadeEscolar, prestadorServico.idPrestadorServico, idMonitoramento);
     await salvarArquivos(_transaction, idOcorrencia, arquivoList);
 
+    if(idOcorrencia && req.body.flagOcorrenciaRetroativa === true){
+      await dao.updateOcorrenciaRetroativa(req.body.idOcorrenciaRetroativa, idOcorrencia, idFiscal, _transaction);
+    }
+
     if (idMonitoramento) {
       await monitoramentoDao.setarOcorrencia(_transaction, idMonitoramento, idOcorrencia);
     }
