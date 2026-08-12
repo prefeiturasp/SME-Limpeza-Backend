@@ -13,11 +13,12 @@ class ContratoDao extends GenericDao {
         where id_contrato = $1
       )
       select c.id_contrato as id, c.descricao, c.codigo, c.data_inicial, c.data_final, c.nome_responsavel, c.email_responsavel,
-        c.id_prestador_servico, c.valor_total, c.numero_pregao, c.nome_lote, c.modelo::text, json_agg(u) as unidade_escolar_lista
+        c.id_prestador_servico, c.valor_total, c.numero_pregao, c.nome_lote, c.modelo::text, json_agg(u) as unidade_escolar_lista, c.motivo_status as motivostatuscontrato, sc.id_status_contrato as idstatuscontrato, sc.descricao as descricaostatuscontrato
       from contrato c
       left join unidades u using (id_contrato)
+      left join status_contrato sc on sc.id_status_contrato = c.id_status_contrato
       where c.id_contrato = $1
-      group by c.id_contrato, c.descricao, c.codigo, c.data_inicial, c.data_final, c.nome_responsavel, c.email_responsavel
+      group by c.id_contrato, c.descricao, c.codigo, c.data_inicial, c.data_final, c.nome_responsavel, c.email_responsavel, motivostatuscontrato, descricaostatuscontrato, idstatuscontrato
       order by c.descricao asc
     `, [id]);
   }
@@ -58,14 +59,15 @@ class ContratoDao extends GenericDao {
   datatable(codigo, idPrestadorServico, length, start) {
 
     const sql = `
-      select count(c.*) over() as records_total, c.id_contrato as id, c.descricao, c.codigo, c.data_inicial, c.data_final, c.valor_total,
+      select count(c.*) over() as records_total, c.id_contrato as id, c.descricao, c.codigo, c.data_inicial, c.data_final, c.valor_total, sc.id_status_contrato as idstatuscontrato, sc.descricao as descricaostatuscontrato,
         json_build_object('razao_social', ps.razao_social, 'cnpj', ps.cnpj) as prestador_servico, count(cue) as quantidade_unidades_escolar
       from contrato c
       join prestador_servico ps using (id_prestador_servico)
+      left join status_contrato sc on sc.id_status_contrato = c.id_status_contrato
       left join contrato_unidade_escolar cue on cue.id_contrato = c.id_contrato
       where case when $1::text is null then true else c.codigo ilike ('%' || $1::text || '%') end
         and case when $2::int is null then true else c.id_prestador_servico = $2::int end
-      group by c.id_contrato, c.descricao, c.codigo, c.data_inicial, c.data_final, ps.razao_social, ps.cnpj
+      group by c.id_contrato, c.descricao, c.codigo, c.data_inicial, c.data_final, ps.razao_social, ps.cnpj, descricaostatuscontrato, idstatuscontrato
       order by c.data_inicial desc, c.data_final desc, substring(c.codigo from '([0-9]+)')::bigint asc, c.codigo
       limit $3 offset $4
     `;

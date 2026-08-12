@@ -32,6 +32,8 @@ app.group("/api/web", (app) => {
     app.use('/feriado', require('./feriado/feriado-controller'));
     app.use('/configuracao', require('./configuracao/configuracao-controller'));
     app.use('/unidade-escolar-status', require('./unidade-escolar-status/unidade-escolar-status-controller.js'));
+    app.use('/contrato-status', require('./contrato/contrato-status/contrato-status-controller.js'));
+    app.use('/atualizarStatusContrato', require('./contrato/contrato-status/contrato-status-controller.js'));
 
     app.use('/plano-trabalho/periodicidade', require('./plano-trabalho/periodicidade/periodicidade-controller'));
     app.use('/plano-trabalho/turno', require('./plano-trabalho/turno/turno-controller'));
