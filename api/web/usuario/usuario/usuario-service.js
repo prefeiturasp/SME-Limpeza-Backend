@@ -55,12 +55,21 @@ async function tabela(req, res) {
   }
 
   const params = await utils.getDatatableParams(req);
+  const idsContrato = params.filters.contrato ? params.filters.contrato.map(c => c.id) : null;
+  const idContratoList = req.userData.origem.codigo !== 'sme' ? null : (await dao.comboContratoPorUsuarioSME(req.userData.idUsuario)).map(c => c.id);
   const idOrigemDetalheList = params.filters.idOrigemDetalhe?.id ? [params.filters.idOrigemDetalhe.id] : await buscarOrigemDetalheListagem(req.userData);
   const idUsuarioOrigemList = params.filters.idUsuarioOrigem ? [params.filters.idUsuarioOrigem] : await buscarUsuarioOrigemListagem(req.userData);
-  const idContratoList = req.userData.origem.codigo !== 'sme' ? null : (await dao.comboContratoPorUsuarioSME(req.userData.idUsuario)).map(c => c.id);
+  let idsContratosList = [];
+
+  if(idsContrato !== null && idsContrato.length > 0) {
+    idsContratosList = idsContrato
+  } else {
+    idsContratosList = idContratoList
+  }
+  
   const idUsuarioStatus = params.filters.idUsuarioStatus;
   const idUsuarioStatusList = idUsuarioStatus === undefined ? [1] : (idUsuarioStatus ? [idUsuarioStatus] : null);
-  const tabela = await dao.datatable(params.filters.nome, params.filters.email, params.filters.idUsuarioCargo, idOrigemDetalheList, idUsuarioOrigemList, idContratoList, params.length, params.start, idUsuarioStatusList);
+  const tabela = await dao.datatable(params.filters.nome, params.filters.email, params.filters.idUsuarioCargo, idOrigemDetalheList, idUsuarioOrigemList, idsContratosList, params.length, params.start, idUsuarioStatusList, params.filters.dreContrato);
   await ctrl.gerarRetornoDatatable(res, tabela);
 }
 
@@ -72,13 +81,30 @@ async function exportar(req, res) {
     }
 
     const params = await utils.getDatatableParams(req);
+    const idsContrato = params.filters.contrato ? params.filters.contrato.map(c => c.id) : null;
+    const idContratoList = req.userData.origem.codigo !== 'sme' ? null : (await dao.comboContratoPorUsuarioSME(req.userData.idUsuario)).map(c => c.id);
     const idOrigemDetalheList = params.filters.idOrigemDetalhe?.id ? [params.filters.idOrigemDetalhe.id] : await buscarOrigemDetalheListagem(req.userData);
     const idUsuarioOrigemList = params.filters.idUsuarioOrigem ? [params.filters.idUsuarioOrigem] : await buscarUsuarioOrigemListagem(req.userData);
-    const idContratoList = req.userData.origem.codigo !== 'sme' ? null : (await dao.comboContratoPorUsuarioSME(req.userData.idUsuario)).map(c => c.id);
+    let idsContratosList = [];
+  
+    if(idsContrato !== null && idsContrato.length > 0) {
+      idsContratosList = idsContrato
+    } else {
+      idsContratosList = idContratoList
+    }
+    
     const idUsuarioStatus = params.filters.idUsuarioStatus;
     const idUsuarioStatusList = idUsuarioStatus === undefined ? [1] : (idUsuarioStatus ? [idUsuarioStatus] : null);
 
-    const dados = await dao.exportar(params.filters.nome, params.filters.email, params.filters.idUsuarioCargo, idOrigemDetalheList, idUsuarioOrigemList, idContratoList, idUsuarioStatusList);
+    const dados = await dao.exportar(
+      params.filters.nome, 
+      params.filters.email, 
+      params.filters.idUsuarioCargo, 
+      idOrigemDetalheList, 
+      idUsuarioOrigemList, 
+      idsContratosList, 
+      idUsuarioStatusList, 
+      params.filters.dreContrato);
     const csvConteudo = await csv.converterFromJson(dados);
 
     const arquivo = {
@@ -594,6 +620,7 @@ async function montarMenuGestorSME() {
         { nome: 'Pontuação - Contrato', link: 'relatorio/contrato-pontos' },
         { nome: 'Equipe Alocada - UE', link: 'relatorio/equipe' },
         { nome: 'Equipe Alocada - Contrato', link: 'relatorio/equipe-contrato' },
+        { nome: 'Agendamento Manual', link: 'relatorio/agendamento-manual' }
         // { nome: 'Ocorrências - Funcionários', link: 'relatorio/ocorrencia-funcionario' },
         // { nome: 'Declarações', link: 'declaracao' }
       ]
@@ -635,6 +662,7 @@ async function montarMenuGestorDRE() {
         { nome: 'Boletim de Medição - UE', link: 'relatorio/gerencial' },
         { nome: 'Boletim de Medição - Contrato', link: 'relatorio/contrato' },
         { nome: 'Pontuação - Contrato', link: 'relatorio/contrato-pontos' },
+        { nome: 'Agendamento Manual', link: 'relatorio/agendamento-manual' }
         // { nome: 'Declarações', link: 'declaracao' }
       ]
     },
@@ -782,6 +810,7 @@ async function montarMenuGestorPS() {
         { nome: 'Boletim de Medição - UE', link: 'relatorio/gerencial' },
         { nome: 'Boletim de Medição - Contrato', link: 'relatorio/contrato' },
         { nome: 'Pontuação - Contrato', link: 'relatorio/contrato-pontos' },
+        { nome: 'Agendamento Manual', link: 'relatorio/agendamento-manual' }
       ]
     },
   ];
