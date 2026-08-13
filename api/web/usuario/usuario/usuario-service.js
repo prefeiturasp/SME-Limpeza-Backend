@@ -55,21 +55,21 @@ async function tabela(req, res) {
   }
 
   const params = await utils.getDatatableParams(req);
-  const idsContrato = params.filters.contrato ? params.filters.contrato.map(c => c.id) : null;
-  const idContratoList = req.userData.origem.codigo !== 'sme' ? null : (await dao.comboContratoPorUsuarioSME(req.userData.idUsuario)).map(c => c.id);
+  const contratosIds = params.filters.contrato ? params.filters.contrato.map(c => c.id) : null;
+  const idContratoL = req.userData.origem.codigo !== 'sme' ? null : (await dao.comboContratoPorUsuarioSME(req.userData.idUsuario)).map(c => c.id);
   const idOrigemDetalheList = params.filters.idOrigemDetalhe?.id ? [params.filters.idOrigemDetalhe.id] : await buscarOrigemDetalheListagem(req.userData);
   const idUsuarioOrigemList = params.filters.idUsuarioOrigem ? [params.filters.idUsuarioOrigem] : await buscarUsuarioOrigemListagem(req.userData);
-  let idsContratosList = [];
+  let listaIdsContrato = [];
 
-  if(idsContrato !== null && idsContrato.length > 0) {
-    idsContratosList = idsContrato
+  if(contratosIds !== null && contratosIds.length > 0) {
+    listaIdsContrato = contratosIds
   } else {
-    idsContratosList = idContratoList
+    listaIdsContrato = idContratoL
   }
   
   const idUsuarioStatus = params.filters.idUsuarioStatus;
   const idUsuarioStatusList = idUsuarioStatus === undefined ? [1] : (idUsuarioStatus ? [idUsuarioStatus] : null);
-  const tabela = await dao.datatable(params.filters.nome, params.filters.email, params.filters.idUsuarioCargo, idOrigemDetalheList, idUsuarioOrigemList, idsContratosList, params.length, params.start, idUsuarioStatusList, params.filters.dreContrato);
+  const tabela = await dao.datatable(params.filters.nome, params.filters.email, params.filters.idUsuarioCargo, idOrigemDetalheList, idUsuarioOrigemList, listaIdsContrato, params.length, params.start, idUsuarioStatusList, params.filters.dreContrato);
   await ctrl.gerarRetornoDatatable(res, tabela);
 }
 
