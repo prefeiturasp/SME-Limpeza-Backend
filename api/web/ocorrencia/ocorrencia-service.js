@@ -166,6 +166,12 @@ async function inserir(req, res) {
     return await ctrl.gerarRetornoErro(res, 'Quando a ação imediata é selecionada, deve-se informar a ação corretiva.');
   }
 
+  //Verifica se o sistema possui ocorrência de mesma natureza para a UE e data informada
+  const ocorrenciaExistente = await dao.verificarOcorrenciaDuplicada(idOcorrenciaVariavel, idUnidadeEscolar, data);
+  if (ocorrenciaExistente) {
+    return await ctrl.gerarRetornoErro(res, 'Já existe uma ocorrência desta natureza cadastrada para esta data.');
+  }
+
   const ocorrenciaVariavel = await ocorrenciaVariavelDao.findById(idOcorrenciaVariavel);
 
   if (ocorrenciaVariavel && ocorrenciaVariavel.flagEquipeAlocada === true) {

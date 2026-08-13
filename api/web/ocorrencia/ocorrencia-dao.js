@@ -508,6 +508,18 @@ class OcorrenciaDao extends GenericDao {
     return this.queryFindOne(sql, [idOcorrencia], _transaction);
   }
 
+  verificarOcorrenciaDuplicada(idOcorrenciaVariavel, idUnidadeEscolar, data) {
+    const sql = `
+      SELECT id_ocorrencia 
+      FROM ocorrencia 
+      WHERE id_ocorrencia_variavel = $1 
+        AND id_unidade_escolar = $2 
+        AND data::date = $3::date
+        AND data_hora_remocao IS NULL
+    `;
+    return this.queryFindOne(sql, [idOcorrenciaVariavel, idUnidadeEscolar, data]);
+  }
+
 }
 
 module.exports = OcorrenciaDao; 
