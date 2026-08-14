@@ -114,7 +114,7 @@ class UsuarioDao extends GenericDao {
 
     const sql = `
       WITH filtered_users AS (
-        SELECT u.id_usuario
+        SELECT DISTINCT u.id_usuario
         FROM usuario u
         JOIN usuario_status us ON us.id_usuario_status = u.id_usuario_status
         JOIN usuario_cargo uc ON uc.id_usuario_cargo = u.id_usuario_cargo
@@ -186,7 +186,7 @@ class UsuarioDao extends GenericDao {
 
     const sql = `
       select
-        uo.id_usuario_origem as id_origem,
+        DISTINCT uo.id_usuario_origem as id_origem,
         case 
           when uo.codigo = 'dre' then dr.descricao
           when uo.codigo = 'ue' then ue.codigo
