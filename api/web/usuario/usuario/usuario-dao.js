@@ -10,15 +10,21 @@ class UsuarioDao extends GenericDao {
 
     const sql = `
       select u.id_usuario as id, u.nome, u.email, u.senha, u.id_origem_detalhe,
-        u.id_usuario_cargo, uc.id_usuario_origem, u.id_usuario_status, u.url_nomeacao,
+        u.id_usuario_cargo, uc.id_usuario_origem, uo.codigo as codigo_origem, u.id_usuario_status, u.url_nomeacao,        
+        dr.descricao as dre_descricao,
+        ps.razao_social as contrato_descricao,
         array_remove(array_agg(upue.id_unidade_escolar), null) as unidade_escolar_permissao,
         array_remove(array_agg(usc.id_contrato), null) as contrato_permissao
       from usuario u
       join usuario_cargo uc on uc.id_usuario_cargo = u.id_usuario_cargo
+      join usuario_origem uo on uo.id_usuario_origem = uc.id_usuario_origem
       left join usuario_prestador_unidade_escolar upue on upue.id_usuario = u.id_usuario
       left join usuario_sme_contrato usc on usc.id_usuario = u.id_usuario
+      left join diretoria_regional dr on dr.id_diretoria_regional = u.id_origem_detalhe and uo.codigo = 'dre'
+      left join prestador_servico ps on ps.id_prestador_servico = u.id_origem_detalhe and uo.codigo = 'ps'
       where u.id_usuario = $1
-      group by 1,2,3,4,5,6,7,8,9`;
+      group by 1,2,3,4,5,6,7,8,9,10,11,12
+    `;
 
     return this.queryFindOne(sql, [id]);
 
@@ -104,38 +110,83 @@ class UsuarioDao extends GenericDao {
 
   }
 
-  datatable(nome, email, idUsuarioCargo, idOrigemDetalheList, idUsuarioOrigemList, idContratoList, length, start, idUsuarioStatusList) {
+  datatable(nome, email, idUsuarioCargo, idOrigemDetalheList, idUsuarioOrigemList, idContratoList, length, start, idUsuarioStatusList, dreContrato) {
 
     const sql = `
-      select count(u.*) over() as records_total, u.id_usuario as id, u.nome, u.email,
+      WITH filtered_users AS (
+        SELECT DISTINCT u.id_usuario
+        FROM usuario u
+        JOIN usuario_status us ON us.id_usuario_status = u.id_usuario_status
+        JOIN usuario_cargo uc ON uc.id_usuario_cargo = u.id_usuario_cargo
+        JOIN usuario_origem uo ON uo.id_usuario_origem = uc.id_usuario_origem
+        LEFT JOIN diretoria_regional dr ON dr.id_diretoria_regional = u.id_origem_detalhe AND uo.codigo = 'dre'
+        LEFT JOIN prestador_servico ps ON ps.id_prestador_servico = u.id_origem_detalhe AND uo.codigo = 'ps'
+        LEFT JOIN contrato c_ps ON c_ps.id_prestador_servico = ps.id_prestador_servico AND c_ps.flag_ativo
+        LEFT JOIN unidade_escolar ue_fiscal ON ue_fiscal.id_unidade_escolar = u.id_origem_detalhe AND uo.codigo = 'ue'
+        LEFT JOIN contrato_unidade_escolar cue ON cue.id_unidade_escolar = ue_fiscal.id_unidade_escolar
+        LEFT JOIN contrato c_ue ON c_ue.id_contrato = cue.id_contrato AND c_ue.flag_ativo AND now() between cue.data_inicial and cue.data_final
+        LEFT JOIN usuario_sme_contrato usc ON usc.id_usuario = u.id_usuario
+        LEFT JOIN contrato c_sme ON c_sme.id_contrato = usc.id_contrato
+        WHERE case when $1::text is null then true else u.nome ilike ('%' || $1::text || '%') end
+          and case when $2::text is null then true else trim(lower(u.email)) = trim(lower($2::text)) end
+          and case when $3::int is null then true else u.id_usuario_cargo = $3::int end
+          and case when $4::int[] is null then true else u.id_origem_detalhe = any($4::int[]) end
+          and uo.id_usuario_origem = any($5::int[])
+          and (
+            case 
+              when $6::int[] is not null then (
+                (uo.codigo = 'ue' AND c_ue.id_contrato = ANY($6::int[])) OR 
+                (uo.codigo = 'ps' AND c_ps.id_contrato = ANY($6::int[])) OR
+                (uo.codigo = 'sme' AND c_sme.id_contrato = ANY($6::int[]))
+              )
+              when $10::text is not null then (dr.descricao ilike ('%' || $10::text || '%') or c_ps.descricao ilike ('%' || $10::text || '%') or c_ps.codigo ilike ('%' || $10::text || '%') or c_ue.descricao ilike ('%' || $10::text || '%') or c_ue.codigo ilike ('%' || $10::text || '%') or c_sme.descricao ilike ('%' || $10::text || '%') or c_sme.codigo ilike ('%' || $10::text || '%'))
+              else true 
+            end
+          ) and case when $9::int[] is null then true else u.id_usuario_status = any($9::int[]) end
+      )
+      , total as (select count(distinct id_usuario) as total from filtered_users)
+      SELECT
+        (SELECT COUNT(*) FROM filtered_users) as records_total,
+        u.id_usuario as id, u.nome, u.email,
         json_build_object('descricao', us.descricao, 'classe_label', us.classe_label) as usuario_status,
-        json_build_object('descricao', uo.descricao, 'codigo', uo.codigo) as usuario_origem,
-        json_build_object('descricao', uc.descricao) as usuario_cargo
+        json_build_object('descricao', uo.descricao, 'codigo', uo.codigo) as usuario_origem,        
+        json_build_object('descricao', uc.descricao) as usuario_cargo,
+        dr.descricao as dre_descricao,
+        c.codigo as contrato_codigo,
+        c.descricao as contrato_descricao
       from usuario u
+      JOIN filtered_users fu ON fu.id_usuario = u.id_usuario
       join usuario_status us on us.id_usuario_status = u.id_usuario_status
       join usuario_cargo uc on uc.id_usuario_cargo = u.id_usuario_cargo
       join usuario_origem uo on uo.id_usuario_origem = uc.id_usuario_origem
-      left join unidade_escolar ue on ue.id_unidade_escolar = u.id_origem_detalhe and uo.codigo = 'ue'
-      left join contrato_unidade_escolar cue on cue.id_unidade_escolar = ue.id_unidade_escolar 
-      where case when $1::text is null then true else u.nome ilike ('%' || $1::text || '%') end
-        and case when $2::text is null then true else trim(lower(u.email)) = trim(lower($2::text)) end
-        and case when $3::int is null then true else u.id_usuario_cargo = $3::int end
-        and case when $4::int[] is null then true else u.id_origem_detalhe = any($4::int[]) end
-        and uo.id_usuario_origem = any($5::int[])
-        and case when $6::int[] is null or uo.codigo <> 'ue' then true else 
-          uo.codigo = 'ue' and cue.id_contrato = any($6::int[]) end
-        and case when $9::int[] is null then true else u.id_usuario_status = any($9::int[]) end
+      left join diretoria_regional dr on dr.id_diretoria_regional = u.id_origem_detalhe and uo.codigo = 'dre'
+      LEFT JOIN LATERAL (
+        SELECT c.id_contrato, c.codigo, c.descricao
+        FROM contrato c
+        JOIN usuario_sme_contrato usc ON usc.id_contrato = c.id_contrato
+        WHERE uo.codigo = 'sme' AND usc.id_usuario = u.id_usuario AND (c.id_contrato = ANY($6) OR $6 IS NULL)
+        UNION
+        SELECT c.id_contrato, c.codigo, c.descricao
+        FROM contrato c
+        JOIN contrato_unidade_escolar cue ON cue.id_contrato = c.id_contrato
+        WHERE uo.codigo = 'ue' AND cue.id_unidade_escolar = u.id_origem_detalhe AND c.flag_ativo AND now() between cue.data_inicial and cue.data_final AND (c.id_contrato = ANY($6) OR $6 IS NULL)
+        UNION
+        SELECT c.id_contrato, c.codigo, c.descricao
+        FROM contrato c
+        WHERE uo.codigo = 'ps' AND c.id_prestador_servico = u.id_origem_detalhe AND c.flag_ativo AND (c.id_contrato = ANY($6) OR $6 IS NULL)
+        LIMIT 1
+      ) c ON true
       order by u.nome limit $7 offset $8`;
 
-    return this.queryFindAll(sql, [nome, email, idUsuarioCargo, idOrigemDetalheList, idUsuarioOrigemList, idContratoList, length, start, idUsuarioStatusList]);
+    return this.queryFindAll(sql, [nome, email, idUsuarioCargo, idOrigemDetalheList, idUsuarioOrigemList, idContratoList, length, start, idUsuarioStatusList, dreContrato]);
 
   }
 
-  exportar(nome, email, idUsuarioCargo, idOrigemDetalheList, idUsuarioOrigemList, idContratoList, idUsuarioStatusList) {
+  exportar(nome, email, idUsuarioCargo, idOrigemDetalheList, idUsuarioOrigemList, idContratoList, idUsuarioStatusList, dreContrato) {
 
     const sql = `
       select
-        uo.id_usuario_origem as id_origem,
+        DISTINCT uo.id_usuario_origem as id_origem,
         case 
           when uo.codigo = 'dre' then dr.descricao
           when uo.codigo = 'ue' then ue.codigo
@@ -155,19 +206,33 @@ class UsuarioDao extends GenericDao {
       join usuario_cargo uc on uc.id_usuario_cargo = u.id_usuario_cargo
       join usuario_origem uo on uo.id_usuario_origem = uc.id_usuario_origem
       left join unidade_escolar ue on ue.id_unidade_escolar = u.id_origem_detalhe and uo.codigo = 'ue'
-      left join diretoria_regional dr on dr.id_diretoria_regional = u.id_origem_detalhe and uo.codigo = 'dre'
-      left join contrato_unidade_escolar cue on cue.id_unidade_escolar = ue.id_unidade_escolar 
+      LEFT JOIN diretoria_regional dr ON dr.id_diretoria_regional = u.id_origem_detalhe AND uo.codigo = 'dre'
+      LEFT JOIN prestador_servico ps ON ps.id_prestador_servico = u.id_origem_detalhe AND uo.codigo = 'ps'
+      LEFT JOIN contrato c_ps ON c_ps.id_prestador_servico = ps.id_prestador_servico AND c_ps.flag_ativo
+      LEFT JOIN contrato_unidade_escolar cue ON cue.id_unidade_escolar = ue.id_unidade_escolar
+      LEFT JOIN contrato c_ue ON c_ue.id_contrato = cue.id_contrato AND c_ue.flag_ativo AND now() between cue.data_inicial and cue.data_final
+      LEFT JOIN usuario_sme_contrato usc ON usc.id_usuario = u.id_usuario
+      LEFT JOIN contrato c_sme ON c_sme.id_contrato = usc.id_contrato
       where case when $1::text is null then true else u.nome ilike ('%' || $1::text || '%') end
         and case when $2::text is null then true else trim(lower(u.email)) = trim(lower($2::text)) end
         and case when $3::int is null then true else u.id_usuario_cargo = $3::int end
         and case when $4::int[] is null then true else u.id_origem_detalhe = any($4::int[]) end
         and uo.id_usuario_origem = any($5::int[])
-        and case when $6::int[] is null or uo.codigo <> 'ue' then true else 
-          uo.codigo = 'ue' and cue.id_contrato = any($6::int[]) end
+        and (
+          case 
+            when $6::int[] is not null then (
+              (uo.codigo = 'ue' AND c_ue.id_contrato = ANY($6::int[])) OR 
+              (uo.codigo = 'ps' AND c_ps.id_contrato = ANY($6::int[])) OR
+              (uo.codigo = 'sme' AND c_sme.id_contrato = ANY($6::int[]))
+            )
+            when $8::text is not null then (dr.descricao ilike ('%' || $8::text || '%') or c_ps.descricao ilike ('%' || $8::text || '%') or c_ps.codigo ilike ('%' || $8::text || '%') or c_ue.descricao ilike ('%' || $8::text || '%') or c_ue.codigo ilike ('%' || $8::text || '%') or c_sme.descricao ilike ('%' || $8::text || '%') or c_sme.codigo ilike ('%' || $8::text || '%'))
+            else true 
+          end
+        )
         and case when $7::int[] is null then true else u.id_usuario_status = any($7::int[]) end
       order by u.nome`;
 
-    return this.queryFindAll(sql, [nome, email, idUsuarioCargo, idOrigemDetalheList, idUsuarioOrigemList, idContratoList, idUsuarioStatusList]);
+    return this.queryFindAll(sql, [nome, email, idUsuarioCargo, idOrigemDetalheList, idUsuarioOrigemList, idContratoList, idUsuarioStatusList, dreContrato]);
 
   }
 

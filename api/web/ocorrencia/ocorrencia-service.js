@@ -93,16 +93,26 @@ async function tabela(req, res) {
     ? [Number(req.userData.idOrigemDetalhe)]
     : extrairIds(params.filters.unidadeEscolar);
 
-  let idContratoList = null;
-  const idsContratoSelecionados = extrairIds(params.filters.contrato);
+  // Unifica a extração de IDs do filtro. O frontend envia 'idContratoList'.
+  const idsContratoDoFiltro = params.filters.idContratoList || extrairIds(params.filters.contrato);
+  let idContratoList = idsContratoDoFiltro;
 
   if (req.userData.origem.codigo === 'sme') {
-    const idsPermitidos = (await usuarioDao.comboContratoPorUsuarioSME(req.userData.idUsuario)).map(c => c.id);
-    idContratoList = idsContratoSelecionados
-      ? idsContratoSelecionados.filter(id => idsPermitidos.includes(id))
-      : idsPermitidos;
-  } else if (req.userData.origem.codigo === 'ps') {
-    idContratoList = idsContratoSelecionados;
+    const contratosPermitidos = await usuarioDao.comboContratoPorUsuarioSME(req.userData.idUsuario);
+    const idsPermitidos = contratosPermitidos.map(c => c.id);
+
+    if (idsContratoDoFiltro && idsContratoDoFiltro.length > 0) {
+      // Se o usuário SME filtrou contratos, usamos a interseção dos filtrados com os permitidos.
+      idContratoList = idsContratoDoFiltro.filter(id => idsPermitidos.includes(id));
+      // Se a interseção for vazia, significa que o usuário não tem permissão para os contratos que filtrou.
+      // Para não retornar nada, usamos um ID inválido que não encontrará correspondência no banco.
+      if (idContratoList.length === 0) {
+        idContratoList = [-1];
+      }
+    } else {
+      // Se o usuário SME não filtrou, a consulta usará todos os contratos que ele tem permissão.
+      idContratoList = idsPermitidos;
+    }
   }
 
   const dataInicial = moment(params.filters.dataInicial).format('YYYY-MM-DD');
@@ -154,6 +164,12 @@ async function inserir(req, res) {
 
   if (flagAcaoImediata && !acaoCorretiva) {
     return await ctrl.gerarRetornoErro(res, 'Quando a ação imediata é selecionada, deve-se informar a ação corretiva.');
+  }
+
+  //Verifica se o sistema possui ocorrência de mesma natureza para a UE e data informada
+  const ocorrenciaExistente = await dao.verificarOcorrenciaDuplicada(idOcorrenciaVariavel, idUnidadeEscolar, data);
+  if (ocorrenciaExistente) {
+    return await ctrl.gerarRetornoErro(res, 'Já existe uma ocorrência desta natureza cadastrada para esta data.');
   }
 
   const ocorrenciaVariavel = await ocorrenciaVariavelDao.findById(idOcorrenciaVariavel);
