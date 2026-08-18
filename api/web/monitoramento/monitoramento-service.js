@@ -155,23 +155,24 @@ async function inserir(req, res) {
     if(arrIdsMonitoramento.length > 0){
       //Veirifica Dias Excepcionais
       if(req.body.arrDiaExcepcional.verificacao){
+        let dataAtual = moment().format('YYYY-MM-DD');
         let quantidadeDiasUtilizados = 0;
         let verificaDiasExcepcionais = false;
         let idContratoUeDiaExcepcional = 0;
-        let mensagem = 'Você atingiu o limite de dias excepcionais para o ano da data selecionada.';
 
-        const ultimoDiaAnoSelecionado = moment(req.body.data).clone().endOf('year').format('YYYY-MM-DD');
-        const contratoAtual = await dao.buscaContratoIdUeData(idUnidadeEscolar, req.body.data);
+        const ultimoDiaAnoSelecionado = moment(req.body.arrDiaExcepcional.data).clone().endOf('year').format('YYYY-MM-DD');
+        const contratoAtual = await dao.buscaContratoIdUeData(req.body.arrDiaExcepcional.idUnidadeEscolar, dataAtual);
+        let mensagem = 'Você atingiu o limite de dias excepcionais para o ano da data selecionada.';
           
         if (typeof contratoAtual === 'object' && contratoAtual.limiteDiasExcepcionais > 0) {
-          const diaExcepcional = await dao.buscaDiasExcepcionais(contratoAtual.idContrato, idUnidadeEscolar, req.body.data);
+          const diaExcepcional = await dao.buscaDiasExcepcionais(contratoAtual.idContrato, req.body.arrDiaExcepcional.idUnidadeEscolar, req.body.arrDiaExcepcional.data);
           if (diaExcepcional) {
               idContratoUeDiaExcepcional = diaExcepcional.id;
               quantidadeDiasUtilizados = diaExcepcional.quantidadeDiasUtilizados + 1;
               if (quantidadeDiasUtilizados > contratoAtual.limiteDiasExcepcionais) {
                 verificaDiasExcepcionais = true;
               } else {
-                const verificacao1 = await dao.comparaDataLimiteExcepcional(contratoAtual.idContrato, idUnidadeEscolar, ultimoDiaAnoSelecionado);
+                const verificacao1 = await dao.comparaDataLimiteExcepcional(contratoAtual.idContrato, req.body.arrDiaExcepcional.idUnidadeEscolar, ultimoDiaAnoSelecionado);
                 if(verificacao1 && !verificacao1.status){
                   for(idMonitoramento of arrIdsMonitoramento){
                     await dao.deleta(idMonitoramento);
@@ -182,7 +183,7 @@ async function inserir(req, res) {
                 }
               }
             } else {
-              const verificacao2 = await dao.comparaDataLimiteExcepcional(contratoAtual.idContrato, idUnidadeEscolar, ultimoDiaAnoSelecionado);
+              const verificacao2 = await dao.comparaDataLimiteExcepcional(contratoAtual.idContrato, req.body.arrDiaExcepcional.idUnidadeEscolar, ultimoDiaAnoSelecionado);
               if(verificacao2){
                 if(!verificacao2.status){
                   for(idMonitoramento of arrIdsMonitoramento){
