@@ -26,6 +26,7 @@ exports.comboDetalhado = comboDetalhado;
 exports.carregarComboDetalhadoTodos = carregarComboDetalhadoTodos;
 
 exports.buscaUsuariosUe = buscaUsuariosUe;
+exports.buscaStatusUePorId = buscaStatusUePorId;
 
 async function buscar(req, res) {
 
@@ -271,4 +272,19 @@ const verificarImportacaoEnderecoInvalido = async (endereco) => {
 async function buscaUsuariosUe(req, res){
   const usuariosUe = await dao.buscaUsuariosUe(req.body.idUnidadeEscolar);
   await ctrl.gerarRetornoOk(res, usuariosUe);
+};
+
+async function buscaStatusUePorId(req, res) {
+
+  let idUe = req.body.idUe;
+  let idStatusUe = req.body.idStatusUe;
+
+  let staUe = await dao.buscaHistoricoStatusUePorId(idUe);
+
+  if(!staUe){
+    staUe = await dao.buscaStatusUePorIdStatus(idStatusUe);
+  }
+
+  await ctrl.gerarRetornoOk(res, staUe);
+
 }
