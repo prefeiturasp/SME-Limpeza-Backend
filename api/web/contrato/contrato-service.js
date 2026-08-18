@@ -521,7 +521,7 @@ exports.remover = async (req, res) => {
   
 }
 
-exports.exportarUesPorContrato = async (req, res) => {
+ exports.exportarUesPorContrato = async (req, res) => {
 
     const idContrato = req.body.idContrato;
 

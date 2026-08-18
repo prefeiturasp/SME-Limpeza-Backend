@@ -272,7 +272,7 @@ class UsuarioDao extends GenericDao {
 
   }
 
-  verificaVinculoContrato(email) {
+   verificaVinculoContrato(email) {
     const sql = `
       SELECT EXISTS (
         SELECT 1 

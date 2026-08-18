@@ -216,7 +216,7 @@ class ContratoDao extends GenericDao {
 
     const sql = `select 
       ue.codigo as codigoUE,
-      c.valor_total as valor,
+      cue.valor as valor,
       c.data_inicial as dataInicial,
       c.data_final as dataFinal
       from contrato c
