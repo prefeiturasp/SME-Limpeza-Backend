@@ -7,6 +7,8 @@ const Dao = require('./monitoramento-dao');
 const UnidadeEscolarDao = require('../unidade-escolar/unidade-escolar-dao');
 const DaoUsuario = require('../usuario/usuario/usuario-dao');
 
+const configuracaoService = require('../configuracao/configuracao-service');
+
 const dao = new Dao();
 const unidadeEscolarDao = new UnidadeEscolarDao();
 const daoUsuario = new DaoUsuario();
@@ -18,6 +20,13 @@ exports.inserir = inserir;
 exports.atualizar = atualizar;
 exports.remover = remover;
 exports.verificaSeDataEferiado = verificaSeDataEferiado;
+
+exports.comboUePorIdContrato = comboUePorIdContrato;
+exports.comboPrestadorServicoPorIdContrato = comboPrestadorServicoPorIdContrato;
+exports.comboContratoPorIdPrestadorServico = comboContratoPorIdPrestadorServico;
+exports.comboUePorIdPrestadorServico = comboUePorIdPrestadorServico;
+exports.comboContratoPorIdUe = comboContratoPorIdUe;
+exports.comboPrestadorServicoPorIdUe = comboPrestadorServicoPorIdUe;
 
 
 async function buscar(req, res) {
@@ -148,23 +157,24 @@ async function inserir(req, res) {
     if(arrIdsMonitoramento.length > 0){
       //Veirifica Dias Excepcionais
       if(req.body.arrDiaExcepcional.verificacao){
+        let dataAtual = moment().format('YYYY-MM-DD');
         let quantidadeDiasUtilizados = 0;
         let verificaDiasExcepcionais = false;
         let idContratoUeDiaExcepcional = 0;
-        let mensagem = 'Você atingiu o limite de dias excepcionais para o ano da data selecionada.';
 
-        const ultimoDiaAnoSelecionado = moment(req.body.data).clone().endOf('year').format('YYYY-MM-DD');
-        const contratoAtual = await dao.buscaContratoIdUeData(idUnidadeEscolar, req.body.data);
+        const ultimoDiaAnoSelecionado = moment(req.body.arrDiaExcepcional.data).clone().endOf('year').format('YYYY-MM-DD');
+        const contratoAtual = await dao.buscaContratoIdUeData(req.body.arrDiaExcepcional.idUnidadeEscolar, dataAtual);
+        let mensagem = 'Você atingiu o limite de dias excepcionais para o ano da data selecionada.';
           
         if (typeof contratoAtual === 'object' && contratoAtual.limiteDiasExcepcionais > 0) {
-          const diaExcepcional = await dao.buscaDiasExcepcionais(contratoAtual.idContrato, idUnidadeEscolar, req.body.data);
+          const diaExcepcional = await dao.buscaDiasExcepcionais(contratoAtual.idContrato, req.body.arrDiaExcepcional.idUnidadeEscolar, req.body.arrDiaExcepcional.data);
           if (diaExcepcional) {
               idContratoUeDiaExcepcional = diaExcepcional.id;
               quantidadeDiasUtilizados = diaExcepcional.quantidadeDiasUtilizados + 1;
               if (quantidadeDiasUtilizados > contratoAtual.limiteDiasExcepcionais) {
                 verificaDiasExcepcionais = true;
               } else {
-                const verificacao1 = await dao.comparaDataLimiteExcepcional(contratoAtual.idContrato, idUnidadeEscolar, ultimoDiaAnoSelecionado);
+                const verificacao1 = await dao.comparaDataLimiteExcepcional(contratoAtual.idContrato, req.body.arrDiaExcepcional.idUnidadeEscolar, ultimoDiaAnoSelecionado);
                 if(verificacao1 && !verificacao1.status){
                   for(idMonitoramento of arrIdsMonitoramento){
                     await dao.deleta(idMonitoramento);
@@ -175,7 +185,7 @@ async function inserir(req, res) {
                 }
               }
             } else {
-              const verificacao2 = await dao.comparaDataLimiteExcepcional(contratoAtual.idContrato, idUnidadeEscolar, ultimoDiaAnoSelecionado);
+              const verificacao2 = await dao.comparaDataLimiteExcepcional(contratoAtual.idContrato, req.body.arrDiaExcepcional.idUnidadeEscolar, ultimoDiaAnoSelecionado);
               if(verificacao2){
                 if(!verificacao2.status){
                   for(idMonitoramento of arrIdsMonitoramento){
@@ -248,6 +258,15 @@ async function remover(req, res) {
 
 async function notificarAgendamentoManual(idMonitoramento, prestadorServico, unidadeEscolar) {
 
+  let notificacaoMonitoramentoPsAtiva = false;
+  let emailsAdicionaisPs = '';
+
+  const configEmailsPs = await configuracaoService.obterObjetoConfiguracaoPs(prestadorServico.id);
+  if(configEmailsPs) {
+    notificacaoMonitoramentoPsAtiva = configEmailsPs.manualAtivo;
+    emailsAdicionaisPs = configEmailsPs.manualEmails;
+  }
+
   const verificacaoEmailMonitoramento = await ctrl.verificarEmailAtivo('EMAIL_NOTIFICACAO_AGENDAMENTO_MANUAL');
   if (verificacaoEmailMonitoramento.valor !== 1) {
     return;
@@ -255,7 +274,13 @@ async function notificarAgendamentoManual(idMonitoramento, prestadorServico, uni
 
   const linkMonitoramento = process.env.FRONTEND_URL + '/monitoramento/detalhe/' + idMonitoramento;
   const emailUsuarioPrestadorServicoList = (await daoUsuario.buscarPrestadorPorUnidadeEscolar(unidadeEscolar.id)).map(u => u.email);
-  const destinatario = prestadorServico.email + ',' + unidadeEscolar.diretoriaRegional.email + ',' + emailUsuarioPrestadorServicoList.join(',');
+  
+  let destinatario = '';
+  if (notificacaoMonitoramentoPsAtiva && emailsAdicionaisPs.length > 4) {
+    destinatario = emailsAdicionaisPs.split(';').map(item => item.trim()).filter(item => item !== "").join(',');
+  } else {
+    destinatario = prestadorServico.email + ',' + unidadeEscolar.diretoriaRegional.email + ',' + emailUsuarioPrestadorServicoList.join(',');
+  }
 
   ctrl.enviarEmail(destinatario, 'Nova Atividade', `
         Olá,
@@ -278,4 +303,28 @@ async function verificaSeDataEferiado(req, res) {
   }
   const feriado = await dao.buscaFeriadoUEPorData(req.body.data, req.body.idUnidadeEscolar);
   return await ctrl.gerarRetornoOk(res, feriado );
+}
+
+async function comboUePorIdContrato(req, res) {
+  return await ctrl.gerarRetornoOk(res, await dao.comboUePorIdContrato(req.body.idContrato));
+}
+
+async function comboPrestadorServicoPorIdContrato(req, res) {
+  return await ctrl.gerarRetornoOk(res, await dao.comboPrestadorServicoPorIdContrato(req.body.idContrato));
+}
+
+async function comboContratoPorIdPrestadorServico(req, res) {
+  return await ctrl.gerarRetornoOk(res, await dao.comboContratoPorIdPrestadorServico(req.body.idPrestadorServico));
+} 
+
+async function comboUePorIdPrestadorServico(req, res) {
+  return await ctrl.gerarRetornoOk(res, await dao.comboUePorIdPrestadorServico(req.body.idPrestadorServico));
+} 
+
+async function comboContratoPorIdUe(req, res) {
+  return await ctrl.gerarRetornoOk(res, await dao.comboContratoPorIdUe(req.body.idUe));
+} 
+
+async function comboPrestadorServicoPorIdUe(req, res) {
+  return await ctrl.gerarRetornoOk(res, await dao.comboPrestadorServicoPorIdUe(req.body.idUe));
 }

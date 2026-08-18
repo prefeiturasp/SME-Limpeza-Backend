@@ -216,7 +216,7 @@ class ContratoDao extends GenericDao {
 
     const sql = `select 
       ue.codigo as codigoUE,
-      c.valor_total as valor,
+      cue.valor as valor,
       c.data_inicial as dataInicial,
       c.data_final as dataFinal
       from contrato c
@@ -241,6 +241,14 @@ class ContratoDao extends GenericDao {
     SET status = true
     WHERE id_contrato_unidade_escolar_limite_dias_excepcionais = $1`;
     return this.query(sql, [idContratoUnidadeDiasExcepcionais]);
+  }
+
+  comboContratoPs(idPrestadorServico) {
+    const sql = `select id_contrato as id, descricao, codigo 
+                from contrato 
+                where id_prestador_servico = $1`;
+
+    return this.queryFindAll(sql, [idPrestadorServico]);
   }
 
 }

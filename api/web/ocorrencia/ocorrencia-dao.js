@@ -221,8 +221,8 @@ class OcorrenciaDao extends GenericDao {
         -- $7: flagSomenteAtivos
         and case when $7::bool then o.data_hora_remocao is null else o.data_hora_remocao is not null end
 
-        -- $9: idDiretoriaRegional
-        and case when $9::int is null then true else ue.id_diretoria_regional = $9::int end
+        -- $9: idDiretoriaRegional (int[])
+        and ($9::int[] is null or ue.id_diretoria_regional = any($9::int[]))
 
         -- $10: ehRespondido (bool)
         and case
@@ -314,14 +314,14 @@ class OcorrenciaDao extends GenericDao {
           and upue.id_usuario = ${idUsuario}` : ``}
       where
         case when $1::int is null then true else o.id_prestador_servico = $1::int end
-        and case when $2::int is null then true else o.id_unidade_escolar = $2::int end
+        and ($2::int[] is null or o.id_unidade_escolar = any($2::int[]))
         and case when $3::int is null then true else ov.id_ocorrencia_tipo = $3::int end
         and o.data::date between $4::date and $5::date
         and case when $6::bool is null then true else 
           case when $6::bool then o.data_hora_final is not null
           else o.data_hora_final is null end end
         and case when $7::bool then o.data_hora_remocao is null else o.data_hora_remocao is not null end
-        and case when $9::int is null then true else ue.id_diretoria_regional = $9::int end
+        and ($9::int[] is null or ue.id_diretoria_regional = any($9::int[]))
       order by o.id_ocorrencia desc, ov.descricao, ue.descricao, ps.razao_social`;
 
     return this.queryFindAll(sql, [idPrestadorServico, idUnidadeEscolar, idOcorrenciaTipo, dataInicial, dataFinal, flagEncerrado, flagSomenteAtivos, idContratoList, idDiretoriaRegional]);

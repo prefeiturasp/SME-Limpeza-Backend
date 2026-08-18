@@ -9,6 +9,10 @@ router.route('/email-settings').patch(service.atualizarEmailSettings);
 router.route('/lista-emails-para-notificacoes').get(service.buscaListaEmailsParaNotificacoes);
 //Rota para salvar emails de notificações
 router.route('/emails-para-notificacoes').post(service.salvarEmailsParaNotificacoes);
+// Rota para buscar lista de e-mails PS
+router.route('/lista-emails-para-notificacoes-ps').get(service.buscaListaEmailsParaNotificacoesPs);
+// Rota para salvar e-mails PS
+router.route('/emails-para-notificacoes-ps').post(service.salvarEmailsParaNotificacoesPs);
 
 router.route('/manutencao-sistema/').post(service.salvaManutencaoSistema);
 router.route('/:parametro').get(service.buscar);

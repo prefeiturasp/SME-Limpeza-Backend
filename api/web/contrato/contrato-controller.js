@@ -7,7 +7,10 @@ const upload = multer({ dest: __dirname + '/upload' });
 router.route('/tabela').get(service.tabela);
 router.route('/combo').get(service.combo);
 router.route('/combo-todos').get(service.comboTodos);
+router.route('/combo-contrato-ps/:idPrestadorServico').get(service.comboContratoPs);
+
 router.route('/combo-equipe').get(service.comboEquipe);
+router.route('/exportar-ue-contrato').post(service.exportarUesPorContrato);
 router.route('/vencimento-proximo/:quantidadeDias').get(service.buscarVencimentoProximo);
 
 router.post('/carregar-arquivo-unidade-escolar',

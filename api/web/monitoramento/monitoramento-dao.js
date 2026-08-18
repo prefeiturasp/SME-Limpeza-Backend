@@ -238,6 +238,74 @@ class MonitoramentoDao extends GenericDao {
     return this.query(sql, [idMonitoramento]);
   } 
 
+  comboUePorIdContrato(idContrato) {
+    const sql = `select c.id_contrato, ue.id_unidade_escolar as id, ue.descricao, ue.codigo, te.descricao as tipo
+                from unidade_escolar ue
+                join tipo_escola te on (te.id_tipo_escola = ue.id_tipo_escola)
+                join contrato_unidade_escolar cue on (cue.id_unidade_escolar = ue.id_unidade_escolar)
+                join contrato c on (c.id_contrato = cue.id_contrato)
+                WHERE c.id_contrato = $1
+                order by ue.descricao`;
+
+    return this.queryFindAll(sql, [idContrato]);
+  }
+
+  comboPrestadorServicoPorIdContrato(idContrato) {
+    const sql = `select ps.id_prestador_servico as id, ps.razao_social as descricao, ps.razao_social, ps.cnpj
+                from contrato c
+                join prestador_servico ps on (c.id_prestador_servico = ps.id_prestador_servico)
+                WHERE c.id_contrato = $1
+                order by ps.razao_social`;
+
+    return this.queryFindAll(sql, [idContrato]);
+  }
+
+  comboContratoPorIdPrestadorServico(idPrestadorServico) {
+    const sql = `select c.id_contrato as id, c.descricao, c.codigo
+                from contrato c
+                join prestador_servico ps on (c.id_prestador_servico = ps.id_prestador_servico)
+                WHERE ps.id_prestador_servico = $1`;
+
+    return this.queryFindAll(sql, [idPrestadorServico]);
+  }
+
+  comboUePorIdPrestadorServico(idPrestadorServico) {
+    const sql = `
+      SELECT ue.id_unidade_escolar AS id, ue.descricao, ue.codigo, ue.endereco, te.descricao AS tipo
+      FROM unidade_escolar AS ue
+      JOIN tipo_escola te ON te.id_tipo_escola = ue.id_tipo_escola
+      WHERE ue.flag_ativo = TRUE AND EXISTS (
+        SELECT 1 FROM monitoramento m
+        WHERE m.id_unidade_escolar = ue.id_unidade_escolar AND m.id_prestador_servico = $1
+      ) ORDER BY ue.descricao`;
+
+    return this.queryFindAll(sql, [idPrestadorServico]);
+
+  }
+
+  comboContratoPorIdUe(idUe) {
+    const sql = `
+      SELECT c.id_contrato as id, c.descricao, c.codigo
+      FROM contrato c
+      JOIN contrato_unidade_escolar cue on (cue.id_contrato = c.id_contrato)
+      WHERE cue.id_unidade_escolar = $1`;
+
+    return this.queryFindAll(sql, [idUe]);
+
+  }
+
+  comboPrestadorServicoPorIdUe(idUe) {
+    const sql = `
+      SELECT ps.id_prestador_servico as id, ps.razao_social as descricao, ps.razao_social, ps.cnpj
+      FROM prestador_servico as ps
+      WHERE EXISTS (
+        SELECT 1 FROM monitoramento m
+        WHERE m.id_prestador_servico = ps.id_prestador_servico AND m.id_unidade_escolar = $1
+      ) ORDER BY ps.razao_social`;
+
+    return this.queryFindAll(sql, [idUe]);
+  }
+
 }
 
 module.exports = MonitoramentoDao;

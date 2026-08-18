@@ -11,7 +11,10 @@ router.route('/combo-todos/').get(service.comboTodos);
 router.route('/combo-tipo-escola').get(service.comboTipoEscola);
 router.route('/combo-detalhado').get(service.comboDetalhado);
 router.route('/combo-detalhado-todos').get(service.carregarComboDetalhadoTodos);
+router.route('/busca-usuarios-ue').post(service.buscaUsuariosUe);
 router.route('/:id').get(service.buscar);
+
+router.route('/status-ue').post(service.buscaStatusUePorId);
 
 router.post('/importar/:idDiretoriaRegional',
     upload.single('file'),
