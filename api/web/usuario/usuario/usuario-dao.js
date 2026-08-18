@@ -82,7 +82,7 @@ class UsuarioDao extends GenericDao {
       join usuario_cargo uc on uc.id_usuario_cargo = u.id_usuario_cargo
       join usuario_origem uo on uo.id_usuario_origem = uc.id_usuario_origem
       join usuario_status us on us.id_usuario_status = u.id_usuario_status
-      where unaccent(lower(u.email)) = unaccent(lower(trim($1)))`;
+      where unaccent(lower(u.email)) ilike unaccent(lower(trim($1)))`;
 
     return this.queryFindOne(sql, [email], _transaction);
 
@@ -104,7 +104,7 @@ class UsuarioDao extends GenericDao {
 
   }
 
-  datatable(nome, email, idUsuarioCargo, idOrigemDetalheList, idUsuarioOrigemList, idContratoList, length, start) {
+  datatable(nome, email, idUsuarioCargo, idOrigemDetalheList, idUsuarioOrigemList, idContratoList, length, start, idUsuarioStatusList) {
 
     const sql = `
       select count(u.*) over() as records_total, u.id_usuario as id, u.nome, u.email,
@@ -124,9 +124,50 @@ class UsuarioDao extends GenericDao {
         and uo.id_usuario_origem = any($5::int[])
         and case when $6::int[] is null or uo.codigo <> 'ue' then true else 
           uo.codigo = 'ue' and cue.id_contrato = any($6::int[]) end
+        and case when $9::int[] is null then true else u.id_usuario_status = any($9::int[]) end
       order by u.nome limit $7 offset $8`;
 
-    return this.queryFindAll(sql, [nome, email, idUsuarioCargo, idOrigemDetalheList, idUsuarioOrigemList, idContratoList, length, start]);
+    return this.queryFindAll(sql, [nome, email, idUsuarioCargo, idOrigemDetalheList, idUsuarioOrigemList, idContratoList, length, start, idUsuarioStatusList]);
+
+  }
+
+  exportar(nome, email, idUsuarioCargo, idOrigemDetalheList, idUsuarioOrigemList, idContratoList, idUsuarioStatusList) {
+
+    const sql = `
+      select
+        uo.id_usuario_origem as id_origem,
+        case 
+          when uo.codigo = 'dre' then dr.descricao
+          when uo.codigo = 'ue' then ue.codigo
+          else null 
+        end as origem_chave,
+        u.nome,
+        u.email,
+        case 
+          when u.id_usuario_cargo = 5 then 'FT'
+          when u.id_usuario_cargo = 6 then 'FS'
+          when u.id_usuario_cargo = 3 then 'R'
+          else null 
+        end as cargo_ue,
+        u.url_nomeacao
+      from usuario u
+      join usuario_status us on us.id_usuario_status = u.id_usuario_status
+      join usuario_cargo uc on uc.id_usuario_cargo = u.id_usuario_cargo
+      join usuario_origem uo on uo.id_usuario_origem = uc.id_usuario_origem
+      left join unidade_escolar ue on ue.id_unidade_escolar = u.id_origem_detalhe and uo.codigo = 'ue'
+      left join diretoria_regional dr on dr.id_diretoria_regional = u.id_origem_detalhe and uo.codigo = 'dre'
+      left join contrato_unidade_escolar cue on cue.id_unidade_escolar = ue.id_unidade_escolar 
+      where case when $1::text is null then true else u.nome ilike ('%' || $1::text || '%') end
+        and case when $2::text is null then true else trim(lower(u.email)) = trim(lower($2::text)) end
+        and case when $3::int is null then true else u.id_usuario_cargo = $3::int end
+        and case when $4::int[] is null then true else u.id_origem_detalhe = any($4::int[]) end
+        and uo.id_usuario_origem = any($5::int[])
+        and case when $6::int[] is null or uo.codigo <> 'ue' then true else 
+          uo.codigo = 'ue' and cue.id_contrato = any($6::int[]) end
+        and case when $7::int[] is null then true else u.id_usuario_status = any($7::int[]) end
+      order by u.nome`;
+
+    return this.queryFindAll(sql, [nome, email, idUsuarioCargo, idOrigemDetalheList, idUsuarioOrigemList, idContratoList, idUsuarioStatusList]);
 
   }
 
@@ -272,7 +313,7 @@ class UsuarioDao extends GenericDao {
 
   }
 
-   verificaVinculoContrato(email) {
+  verificaVinculoContrato(email) {
     const sql = `
       SELECT EXISTS (
         SELECT 1 
@@ -287,6 +328,42 @@ class UsuarioDao extends GenericDao {
       ) AS "possuiVinculo"`;
 
     return this.queryFindOne(sql, [email]);
+  }
+
+  buscarEntidadesSemUsuarios(){
+    const sql = `(SELECT 'DRE' as tipo, dr.descricao as chave, dr.descricao as nome
+       FROM diretoria_regional dr
+       WHERE dr.flag_ativo = true)
+      UNION ALL
+      (SELECT DISTINCT 'UE' as tipo, ue.codigo as chave, ue.descricao as nome
+       FROM unidade_escolar ue
+       JOIN contrato_unidade_escolar cue ON cue.id_unidade_escolar = ue.id_unidade_escolar
+       JOIN contrato c ON c.id_contrato = cue.id_contrato
+       WHERE ue.flag_ativo = true 
+       AND c.flag_ativo = true AND now() BETWEEN cue.data_inicial AND cue.data_final)
+      UNION ALL
+      (SELECT 'CONTRATO' as tipo, c.codigo as chave, c.descricao as nome
+       FROM contrato c
+       JOIN contrato_unidade_escolar cue ON c.id_contrato = cue.id_contrato
+       WHERE c.flag_ativo = true AND now() BETWEEN cue.data_inicial AND cue.data_final
+       AND NOT EXISTS (
+           SELECT 1 FROM usuario_sme_contrato usc JOIN usuario u USING (id_usuario) WHERE usc.id_contrato = c.id_contrato AND u.id_usuario_status = 1
+           UNION
+           SELECT 1 FROM contrato_unidade_escolar cue JOIN usuario u ON u.id_origem_detalhe = cue.id_unidade_escolar WHERE cue.id_contrato = c.id_contrato AND u.id_usuario_status = 1
+       ))`;
+    return this.queryFindAll(sql);
+  }
+
+  desativarNaoListados(emails, _transaction) {
+    const sql = `
+      update usuario 
+      set id_usuario_status = 3 -- Inativo
+      where id_usuario_status = 1 -- Ativo
+      and id_usuario_cargo in (select id_usuario_cargo from usuario_cargo where id_usuario_origem in (1, 2, 3))
+      and not (unaccent(lower(email)) = any(
+          select unaccent(lower(trim(e))) from unnest($1::text[]) e
+      ))`;
+    return this.query(sql, [emails], _transaction);
   }
 
 }
