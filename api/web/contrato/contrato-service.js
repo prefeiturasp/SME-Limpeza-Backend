@@ -521,6 +521,19 @@ exports.remover = async (req, res) => {
   
 }
 
+exports.comboContratoPs = async (req, res) => {
+
+  const idPrestadorServico = req.params.idPrestadorServico;
+
+  if (req.userData.origem.codigo !== 'ps') {
+    return ctrl.gerarRetornoOk(res, []);
+  }
+
+  const contratos = await dao.comboContratoPs(idPrestadorServico);
+  return ctrl.gerarRetornoOk(res, contratos);
+
+}
+
  exports.exportarUesPorContrato = async (req, res) => {
 
     const idContrato = req.body.idContrato;

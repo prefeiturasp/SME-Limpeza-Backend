@@ -243,6 +243,14 @@ class ContratoDao extends GenericDao {
     return this.query(sql, [idContratoUnidadeDiasExcepcionais]);
   }
 
+  comboContratoPs(idPrestadorServico) {
+    const sql = `select id_contrato as id, descricao, codigo 
+                from contrato 
+                where id_prestador_servico = $1`;
+
+    return this.queryFindAll(sql, [idPrestadorServico]);
+  }
+
 }
 
 module.exports = ContratoDao;
