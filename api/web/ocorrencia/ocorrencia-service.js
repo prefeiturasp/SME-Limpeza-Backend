@@ -192,6 +192,8 @@ async function inserir(req, res) {
     const idOcorrencia = await dao.insert(_transaction, idOcorrenciaVariavel, observacao, acaoCorretiva, data, idFiscal, idUnidadeEscolar, prestadorServico.idPrestadorServico, idMonitoramento);
     // função para salvar o historico da ocorrência
     await dao.salvaHistoricoOcorrencia(idOcorrencia, null, 1, idFiscal, _transaction);
+    // função para verificar a data de cadastro da ocorrência
+    await verificaDataCadastroOcorrencia(idOcorrencia, data);
 
     await salvarArquivos(_transaction, idOcorrencia, arquivoList);
 
@@ -263,6 +265,8 @@ async function encerrar(req, res) {
     }
 
     await dao.encerrar(_transaction, idOcorrencia, dataHora, flagGerarDesconto, motivoNaoAtendido);
+    // função para verificar a data de cadastro da ocorrência
+    await verificaDataCadastroOcorrencia(idOcorrencia, ocorrencia.dataHoraCadastro);
     await buscaSalvaHistoricoOcorrencia(idOcorrencia, 4, idUsuario);
 
     const contrato = await unidadeEscolarDao.buscarContrato(ocorrencia.unidadeEscolar.id, ocorrencia.data);
@@ -323,6 +327,8 @@ async function reabrir(req, res) {
       return await ctrl.gerarRetornoErro(res);
     }
     await dao.reabrir(idOcorrencia);
+    // função para verificar a data de cadastro da ocorrência
+    await verificaDataCadastroOcorrencia(idOcorrencia, ocorrencia.dataHoraCadastro);
     await buscaSalvaHistoricoOcorrencia(idOcorrencia, 2, idUsuario, 'reabrir');
 
     await ctrl.gerarRetornoOk(res);
@@ -370,6 +376,8 @@ async function remover(req, res) {
     // await dao.removerMensagens(idOcorrencia, _transaction);
     await dao.removerVinculoMonitoramento(idOcorrencia, _transaction);
     await dao.remover(idOcorrencia, idUsuarioRemocao, _transaction);
+    // função para remover a data de cadastro da ocorrência
+    await dao.removeDataCadastroOcorrencia(idOcorrencia);
     // Função para remover o histórico da ocorrência 
     await dao.removerHistoricoOcorrencia(idOcorrencia, _transaction);
 
@@ -545,4 +553,19 @@ async function reabreOcorrencia(idOcorrencia, _transaction) {
     await dao.alteraFlagEncerramentoAutomatico(idOcorrencia, false, null);
   }
   await dao.alteraDataCadastroOcorrencia(idOcorrencia);
+}
+
+async function verificaDataCadastroOcorrencia(idOcorrencia, dataOcorrencia) {
+  const _transaction = await ctrl.iniciarTransaction();
+  try {
+    const buscaDataCadOcorrencia = await dao.buscaDataCadastroOcorrencia(idOcorrencia, _transaction);
+    if(!buscaDataCadOcorrencia) {
+      await dao.salvaDataCadOcorrencia(idOcorrencia, dataOcorrencia, _transaction);
+    } 
+    await ctrl.finalizarTransaction(true, _transaction);
+  } catch (error) {
+    await ctrl.finalizarTransaction(false, _transaction);
+    throw error;
+  }
+  
 }

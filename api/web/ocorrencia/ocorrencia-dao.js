@@ -38,7 +38,11 @@ class OcorrenciaDao extends GenericDao {
         json_build_object('id', ps.id_prestador_servico, 'razao_social', ps.razao_social, 'cnpj', ps.cnpj, 'email', ps.email) as prestador_servico,
         coalesce(to_json(oa.arquivos), '[]') as arquivos,
         coalesce(to_json(c.cargos), '[]') as equipe_list,
-        o.data_hora_remocao, u.nome as nome_usuario_remocao, uf.nome as nome_usuario_fiscal
+        o.data_hora_remocao, u.nome as nome_usuario_remocao, uf.nome as nome_usuario_fiscal,
+        case 
+          when ohc.data_cadastro is not null then ohc.data_cadastro
+          when o.data_hora_cadastro is not null then o.data_hora_cadastro
+        end as data_cadastro_inicial
       from ocorrencia o 
       join ocorrencia_variavel ov using (id_ocorrencia_variavel)
       join ocorrencia_tipo ot using (id_ocorrencia_tipo)
@@ -49,6 +53,7 @@ class OcorrenciaDao extends GenericDao {
       left join arquivos oa on oa.id_ocorrencia = o.id_ocorrencia
       left join cargos c on c.id_ocorrencia = o.id_ocorrencia
       left join usuario u on u.id_usuario = o.id_usuario_remocao
+      left join ocorrencia_historico_cadastro ohc on o.id_ocorrencia = ohc.id_ocorrencia
       where o.id_ocorrencia = $1`;
 
     return this.queryFindOne(sql, [id]);
@@ -518,6 +523,20 @@ class OcorrenciaDao extends GenericDao {
         AND data_hora_remocao IS NULL
     `;
     return this.queryFindOne(sql, [idOcorrenciaVariavel, idUnidadeEscolar, data]);
+  }
+
+  buscaDataCadastroOcorrencia(idOcorrencia, _transaction) {
+    const sql = `select data_cadastro from ocorrencia_historico_cadastro where id_ocorrencia = $1 `;
+    return this.queryFindOne(sql, [idOcorrencia], _transaction);
+  }
+
+  salvaDataCadOcorrencia(idOcorrencia, dataOcorrencia, _transaction) {
+    const sql = `insert into ocorrencia_historico_cadastro (id_ocorrencia, data_cadastro) values ($1, $2) `;
+    return this.query(sql, [idOcorrencia, dataOcorrencia], _transaction);
+  }
+   removeDataCadastroOcorrencia(idOcorrencia, _transaction) {
+    const sql = `delete from ocorrencia_historico_cadastro where id_ocorrencia = $1 `;
+    return this.query(sql, [idOcorrencia], _transaction);
   }
 
 }
