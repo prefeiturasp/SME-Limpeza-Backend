@@ -377,7 +377,7 @@ async function remover(req, res) {
     await dao.removerVinculoMonitoramento(idOcorrencia, _transaction);
     await dao.remover(idOcorrencia, idUsuarioRemocao, _transaction);
     // função para remover a data de cadastro da ocorrência
-    await dao.removeDataCadastroOcorrencia(idOcorrencia);
+    await dao.removeDataCadastroOcorrencia(idOcorrencia, _transaction);
     // Função para remover o histórico da ocorrência 
     await dao.removerHistoricoOcorrencia(idOcorrencia, _transaction);
 
@@ -424,7 +424,6 @@ async function remover(req, res) {
     await ctrl.finalizarTransaction(true, _transaction);
     await ctrl.gerarRetornoOk(res);
   } catch (error) {
-    console.log(error);
     await ctrl.finalizarTransaction(false, _transaction);
     await ctrl.gerarRetornoErro(res);
   }
