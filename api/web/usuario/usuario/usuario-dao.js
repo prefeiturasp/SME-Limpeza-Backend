@@ -115,15 +115,18 @@ class UsuarioDao extends GenericDao {
       join usuario_status us on us.id_usuario_status = u.id_usuario_status
       join usuario_cargo uc on uc.id_usuario_cargo = u.id_usuario_cargo
       join usuario_origem uo on uo.id_usuario_origem = uc.id_usuario_origem
-      left join unidade_escolar ue on ue.id_unidade_escolar = u.id_origem_detalhe and uo.codigo = 'ue'
-      left join contrato_unidade_escolar cue on cue.id_unidade_escolar = ue.id_unidade_escolar 
       where case when $1::text is null then true else u.nome ilike ('%' || $1::text || '%') end
         and case when $2::text is null then true else trim(lower(u.email)) = trim(lower($2::text)) end
         and case when $3::int is null then true else u.id_usuario_cargo = $3::int end
         and case when $4::int[] is null then true else u.id_origem_detalhe = any($4::int[]) end
         and uo.id_usuario_origem = any($5::int[])
         and case when $6::int[] is null or uo.codigo <> 'ue' then true else 
-          uo.codigo = 'ue' and cue.id_contrato = any($6::int[]) end
+          exists (
+            select 1
+            from contrato_unidade_escolar cue
+            where cue.id_unidade_escolar = u.id_origem_detalhe
+              and cue.id_contrato = any($6::int[])
+          ) end
         and case when $9::int[] is null then true else u.id_usuario_status = any($9::int[]) end
       order by u.nome limit $7 offset $8`;
 
@@ -156,14 +159,18 @@ class UsuarioDao extends GenericDao {
       join usuario_origem uo on uo.id_usuario_origem = uc.id_usuario_origem
       left join unidade_escolar ue on ue.id_unidade_escolar = u.id_origem_detalhe and uo.codigo = 'ue'
       left join diretoria_regional dr on dr.id_diretoria_regional = u.id_origem_detalhe and uo.codigo = 'dre'
-      left join contrato_unidade_escolar cue on cue.id_unidade_escolar = ue.id_unidade_escolar 
       where case when $1::text is null then true else u.nome ilike ('%' || $1::text || '%') end
         and case when $2::text is null then true else trim(lower(u.email)) = trim(lower($2::text)) end
         and case when $3::int is null then true else u.id_usuario_cargo = $3::int end
         and case when $4::int[] is null then true else u.id_origem_detalhe = any($4::int[]) end
         and uo.id_usuario_origem = any($5::int[])
         and case when $6::int[] is null or uo.codigo <> 'ue' then true else 
-          uo.codigo = 'ue' and cue.id_contrato = any($6::int[]) end
+          exists (
+            select 1
+            from contrato_unidade_escolar cue
+            where cue.id_unidade_escolar = u.id_origem_detalhe
+              and cue.id_contrato = any($6::int[])
+          ) end
         and case when $7::int[] is null then true else u.id_usuario_status = any($7::int[]) end
       order by u.nome`;
 
