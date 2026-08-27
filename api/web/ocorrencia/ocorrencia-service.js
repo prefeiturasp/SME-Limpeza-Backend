@@ -118,15 +118,31 @@ async function exportar(req, res) {
   const ehPrestadorServico = req.userData.origem.codigo === 'ps';
   const idPrestadorServico = ehPrestadorServico ? req.userData.idOrigemDetalhe : filtros.prestadorServico?.id;
   const idDiretoriaRegional = req.userData.origem.codigo === 'dre' ? req.userData.idOrigemDetalhe : null;
-  const idUnidadeEscolar = req.userData.origem.codigo === 'ue' ? req.userData.idOrigemDetalhe : filtros.unidadeEscolar?.id;
+  const extrairIds = (campo) => {
+    if (!campo) return null;
+    const array = Array.isArray(campo) ? campo : [campo];
+    const ids = array.map(x => Number(x?.id)).filter(Number.isFinite);
+    return ids.length ? ids : null;
+  };
+  const idUnidadeEscolarList = req.userData.origem.codigo === 'ue'
+    ? [Number(req.userData.idOrigemDetalhe)]
+    : extrairIds(filtros.unidadeEscolar);
 
-  const idContratoPermissaoList = req.userData.origem.codigo !== 'sme' ? null : (await usuarioDao.comboContratoPorUsuarioSME(req.userData.idUsuario)).map(c => c.id);
-  const possuiPermissaoContratoFiltrado = (idContratoPermissaoList || []).some(c => c === filtros.contrato?.id);
-  const idContratoList = filtros.contrato && possuiPermissaoContratoFiltrado ? [filtros.contrato.id] : idContratoPermissaoList;
+  let idContratoList = null;
+  const idsContratoSelecionados = extrairIds(filtros.contrato);
+
+  if (req.userData.origem.codigo === 'sme') {
+    const idsPermitidos = (await usuarioDao.comboContratoPorUsuarioSME(req.userData.idUsuario)).map(c => c.id);
+    idContratoList = idsContratoSelecionados
+      ? idsContratoSelecionados.filter(id => idsPermitidos.includes(id))
+      : idsPermitidos;
+  } else if (req.userData.origem.codigo === 'ps') {
+    idContratoList = idsContratoSelecionados;
+  }
 
   const dataInicial = moment(filtros.dataInicial).format('YYYY-MM-DD');
   const dataFinal = moment(filtros.dataFinal).format('YYYY-MM-DD');
-  const dados = await dao.exportar(req.userData.idUsuario, ehPrestadorServico, idPrestadorServico, idUnidadeEscolar, filtros.idOcorrenciaTipo, dataInicial, dataFinal, flagEncerrado, flagSomenteAtivos, idContratoList, idDiretoriaRegional);
+  const dados = await dao.exportar(req.userData.idUsuario, ehPrestadorServico, idPrestadorServico, idUnidadeEscolarList, filtros.idOcorrenciaTipo, dataInicial, dataFinal, flagEncerrado, flagSomenteAtivos, idContratoList, idDiretoriaRegional);
   const csvString = await csv.converterFromJson(dados);
   await ctrl.gerarRetornoOk(res, csvString);
 }
