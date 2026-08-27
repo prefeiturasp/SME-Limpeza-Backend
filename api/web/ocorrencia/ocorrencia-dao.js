@@ -282,11 +282,6 @@ class OcorrenciaDao extends GenericDao {
   exportar(idUsuario, ehPrestadorServico, idPrestadorServico, idUnidadeEscolar, idOcorrenciaTipo, dataInicial, dataFinal, flagEncerrado, flagSomenteAtivos, idContratoList, idDiretoriaRegional) {
     
     const sql = `
-      with unidades as (
-        select distinct(id_unidade_escolar)
-        from contrato_unidade_escolar
-        where case when $8::int[] is null then true else id_contrato = any($8::int[]) end
-      )
       select o.id_ocorrencia as id, o.data as data_hora_ocorrencia, o.data_hora_cadastro,
         ue.codigo as ue_codigo, ue.descricao as ue_nome,
         ot.descricao as variavel_gerencial_principal, ov.descricao as variavel_gerencial_secundaria, o.observacao, 
@@ -299,8 +294,7 @@ class OcorrenciaDao extends GenericDao {
       case 
           when (o.data_hora_final is not null) and o.flag_gerar_desconto is false then 'Sim' else 'Não' 
       end as atendido
-      from unidades u
-      join ocorrencia o using (id_unidade_escolar)
+      from ocorrencia o
       left join monitoramento using (id_monitoramento)
       left join ambiente_unidade_escolar aue using (id_ambiente_unidade_escolar)
       join ocorrencia_variavel ov using (id_ocorrencia_variavel)
@@ -322,6 +316,20 @@ class OcorrenciaDao extends GenericDao {
           else o.data_hora_final is null end end
         and case when $7::bool then o.data_hora_remocao is null else o.data_hora_remocao is not null end
         and ($9::int[] is null or ue.id_diretoria_regional = any($9::int[]))
+        and (
+          $8::int[] is null
+          or exists (
+            select 1
+            from contrato_unidade_escolar cue
+            join contrato c using (id_contrato)
+            where cue.id_unidade_escolar = o.id_unidade_escolar
+              and c.id_contrato = any($8::int[])
+              and o.data::date >= coalesce(cue.data_inicial::date, o.data::date)
+              and o.data::date <= coalesce(cue.data_final::date, '9999-12-31'::date)
+              and (c.data_inicial is null or o.data::date >= c.data_inicial::date)
+              and (c.data_final is null or o.data::date <= c.data_final::date)
+          )
+        )
       order by o.id_ocorrencia desc, ov.descricao, ue.descricao, ps.razao_social`;
 
     return this.queryFindAll(sql, [idPrestadorServico, idUnidadeEscolar, idOcorrenciaTipo, dataInicial, dataFinal, flagEncerrado, flagSomenteAtivos, idContratoList, idDiretoriaRegional]);
