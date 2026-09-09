@@ -23,17 +23,20 @@ var mockCtrl = {
 var mockUtils = {
   getDatatableParams: jest.fn(),
 };
+var mockCsvConverterFromJson = jest.fn();
 rfr.__set('core/controller.js', mockCtrl);
 rfr.__set('core/utils/utils.js', mockUtils);
-rfr.__set('core/utils/csv.js', { converterFromJson: jest.fn() });
+rfr.__set('core/utils/csv.js', { converterFromJson: mockCsvConverterFromJson });
 
 // 3) Mocks das dependências diretas usadas por tabela()
 var mockDaoDatatable = jest.fn();
+var mockDaoExportar = jest.fn();
 var mockComboContratoPorUsuarioSME = jest.fn();
 
 jest.mock('../ocorrencia-dao', () => {
   return jest.fn().mockImplementation(() => ({
     datatable: (...args) => mockDaoDatatable(...args),
+    exportar: (...args) => mockDaoExportar(...args),
   }));
 });
 
@@ -54,6 +57,72 @@ jest.mock('../../diretoria-regional/diretoria-regional-dao', () => jest.fn().moc
 jest.mock('../../ocorrencia/ocorrencia-variavel/ocorrencia-variavel-dao', () => jest.fn().mockImplementation(() => ({})));
 jest.mock('../../contrato/contrato-dao', () => jest.fn().mockImplementation(() => ({})));
 jest.mock('../../relatorio/relatorio-gerencial/relatorio-gerencial-dao', () => jest.fn().mockImplementation(() => ({})));
+
+describe('ocorrencia-service.exportar()', () => {
+  let service;
+  let req, res;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    service = require('../ocorrencia-service');
+
+    req = {
+      userData: {
+        origem: { codigo: 'sme' },
+        idOrigemDetalhe: 999,
+        idUsuario: 123,
+      },
+      query: {
+        filtros: JSON.stringify({
+          flagEncerrado: '',
+          flagSomenteAtivos: 'true',
+          prestadorServico: null,
+          unidadeEscolar: null,
+          idOcorrenciaTipo: null,
+          contrato: null,
+          dataInicial: '2024-06-01',
+          dataFinal: '2024-06-15',
+        }),
+      },
+    };
+    res = {};
+  });
+
+  test('perfil dre: envia idDiretoriaRegional como array para o dao de exportação', async () => {
+    req.userData.origem.codigo = 'dre';
+    req.userData.idOrigemDetalhe = 42;
+    req.query.filtros = JSON.stringify({
+      flagEncerrado: '',
+      flagSomenteAtivos: 'true',
+      prestadorServico: null,
+      unidadeEscolar: null,
+      idOcorrenciaTipo: null,
+      contrato: null,
+      dataInicial: '2024-06-01',
+      dataFinal: '2024-06-15',
+    });
+
+    mockDaoExportar.mockResolvedValue([{ id: 1 }]);
+    mockCsvConverterFromJson.mockResolvedValue('id,descricao\n1,ok');
+
+    await service.exportar(req, res);
+
+    expect(mockDaoExportar).toHaveBeenCalledWith(
+      123,
+      false,
+      undefined,
+      null,
+      null,
+      '2024-06-01',
+      '2024-06-15',
+      null,
+      true,
+      null,
+      [42]
+    );
+    expect(mockCtrl.gerarRetornoOk).toHaveBeenCalledWith(res, 'id,descricao\n1,ok');
+  });
+});
 
 describe('ocorrencia-service.tabela()', () => {
   let service;
