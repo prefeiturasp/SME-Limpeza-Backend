@@ -117,13 +117,15 @@ async function exportar(req, res) {
   const flagSomenteAtivos = filtros.flagSomenteAtivos !== 'false';
   const ehPrestadorServico = req.userData.origem.codigo === 'ps';
   const idPrestadorServico = ehPrestadorServico ? req.userData.idOrigemDetalhe : filtros.prestadorServico?.id;
-  const idDiretoriaRegional = req.userData.origem.codigo === 'dre' ? req.userData.idOrigemDetalhe : null;
   const extrairIds = (campo) => {
     if (!campo) return null;
     const array = Array.isArray(campo) ? campo : [campo];
     const ids = array.map(x => Number(x?.id)).filter(Number.isFinite);
     return ids.length ? ids : null;
   };
+  const idDiretoriaRegional = req.userData.origem.codigo === 'dre'
+    ? [Number(req.userData.idOrigemDetalhe)]
+    : extrairIds(filtros.dre);
   const idUnidadeEscolarList = req.userData.origem.codigo === 'ue'
     ? [Number(req.userData.idOrigemDetalhe)]
     : extrairIds(filtros.unidadeEscolar);
