@@ -338,26 +338,55 @@ class UsuarioDao extends GenericDao {
   }
 
   buscarEntidadesSemUsuarios(){
-    const sql = `(SELECT 'DRE' as tipo, dr.descricao as chave, dr.descricao as nome
-       FROM diretoria_regional dr
-       WHERE dr.flag_ativo = true)
+    const sql = `
+      SELECT 'DRE' as tipo,
+             dr.descricao as chave,
+             dr.descricao as nome
+      FROM diretoria_regional dr
+      WHERE dr.flag_ativo = true
+        AND NOT EXISTS (
+          SELECT 1
+          FROM usuario u
+          JOIN usuario_cargo uc ON uc.id_usuario_cargo = u.id_usuario_cargo
+          JOIN usuario_origem uo ON uo.id_usuario_origem = uc.id_usuario_origem
+          WHERE u.id_origem_detalhe = dr.id_diretoria_regional
+            AND u.id_usuario_status = 1
+            AND uo.codigo = 'dre'
+        )
+
       UNION ALL
-      (SELECT DISTINCT 'UE' as tipo, ue.codigo as chave, ue.descricao as nome
-       FROM unidade_escolar ue
-       JOIN contrato_unidade_escolar cue ON cue.id_unidade_escolar = ue.id_unidade_escolar
-       JOIN contrato c ON c.id_contrato = cue.id_contrato
-       WHERE ue.flag_ativo = true 
-       AND c.flag_ativo = true AND now() BETWEEN cue.data_inicial AND cue.data_final)
+
+      SELECT 'UE' as tipo,
+             ue.codigo as chave,
+             ue.descricao as nome
+      FROM unidade_escolar ue
+      WHERE ue.flag_ativo = true
+        AND NOT EXISTS (
+          SELECT 1
+          FROM usuario u
+          JOIN usuario_cargo uc ON uc.id_usuario_cargo = u.id_usuario_cargo
+          JOIN usuario_origem uo ON uo.id_usuario_origem = uc.id_usuario_origem
+          WHERE u.id_origem_detalhe = ue.id_unidade_escolar
+            AND u.id_usuario_status = 1
+            AND uo.codigo = 'ue'
+        )
+
       UNION ALL
-      (SELECT 'CONTRATO' as tipo, c.codigo as chave, c.descricao as nome
-       FROM contrato c
-       JOIN contrato_unidade_escolar cue ON c.id_contrato = cue.id_contrato
-       WHERE c.flag_ativo = true AND now() BETWEEN cue.data_inicial AND cue.data_final
-       AND NOT EXISTS (
-           SELECT 1 FROM usuario_sme_contrato usc JOIN usuario u USING (id_usuario) WHERE usc.id_contrato = c.id_contrato AND u.id_usuario_status = 1
-           UNION
-           SELECT 1 FROM contrato_unidade_escolar cue JOIN usuario u ON u.id_origem_detalhe = cue.id_unidade_escolar WHERE cue.id_contrato = c.id_contrato AND u.id_usuario_status = 1
-       ))`;
+
+      SELECT 'CONTRATO' as tipo,
+             c.codigo as chave,
+             c.descricao as nome
+      FROM contrato c
+      WHERE c.flag_ativo = true
+        AND NOT EXISTS (
+          SELECT 1
+          FROM usuario_sme_contrato usc
+          JOIN usuario u ON u.id_usuario = usc.id_usuario
+          WHERE usc.id_contrato = c.id_contrato
+            AND u.id_usuario_status = 1
+        )
+      ORDER BY tipo, nome`;
+
     return this.queryFindAll(sql);
   }
 
