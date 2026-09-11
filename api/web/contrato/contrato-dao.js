@@ -43,6 +43,20 @@ class ContratoDao extends GenericDao {
     `, [id, idUnidadeEscolar]);
   }
 
+  buscarContratosPorUnidadeEscolar(idUnidadeEscolar) {
+    const sql = `
+      select distinct c.id_contrato as id,
+                      c.codigo,
+                      c.descricao
+      from contrato c
+      join contrato_unidade_escolar cue on cue.id_contrato = c.id_contrato
+      where cue.id_unidade_escolar = $1
+        and c.flag_ativo = true
+      order by c.codigo asc`;
+
+    return this.queryFindAll(sql, [idUnidadeEscolar]);
+  }
+
   buscarVencimentoProximo(quantidadeDias, dataAtual) {
     return this.queryFindAll(`
       select 

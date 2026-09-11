@@ -12,11 +12,13 @@ const Dao = require('./usuario-dao');
 const UsuarioStatusDao = require('../usuario-status/usuario-status-dao');
 const UnidadeEscolarDao = require('../../unidade-escolar/unidade-escolar-dao');
 const DiretoriaRegionalDao = require('../../diretoria-regional/diretoria-regional-dao');
+const ContratoDao = require('../../contrato/contrato-dao');
 
 const dao = new Dao();
 const usuarioStatusDao = new UsuarioStatusDao();
 const unidadeEscolarDao = new UnidadeEscolarDao();
 const diretoriaRegionalDao = new DiretoriaRegionalDao();
+const contratoDao = new ContratoDao();
 exports.buscar = buscar;
 exports.tabela = tabela;
 exports.exportar = exportar;
@@ -246,19 +248,58 @@ async function importar(req, res) {
       await dao.desativarNaoListados(emailsValidos, _transaction);
     }
 
-    // Validação de Cobertura Total
-    const entidadesVazias = await dao.buscarEntidadesSemUsuarios();
-    const pendentes = entidadesVazias.filter(entidade => {
+    // Validação de Cobertura Total a partir da tabela importada (usuarioList)
+    const entidadesAtivas = await dao.buscarEntidadesSemUsuarios();
+    const pendentes = [];
+
+    for (const entidade of entidadesAtivas) {
       if (entidade.tipo === 'DRE') {
-        return !usuarioList.some(u => u.id_origem == 2 && u.origem_chave === entidade.chave && u.classeResultado !== 'danger');
+        const coberturaDre = usuarioList.some(u =>
+          u.idOrigem === UsuarioOrigemConstants.DRE &&
+          u.origem_chave === entidade.chave &&
+          u.classeResultado !== 'danger'
+        );
+
+        if (!coberturaDre) {
+          pendentes.push(entidade);
+        }
+        continue;
       }
+
       if (entidade.tipo === 'UE') {
-        return !usuarioList.some(u => u.id_origem == 3 && u.origem_chave === entidade.chave && u.classeResultado !== 'danger');
+        const coberturaUe = usuarioList.some(u =>
+          u.idOrigem === UsuarioOrigemConstants.UE &&
+          u.origem_chave === entidade.chave &&
+          u.classeResultado !== 'danger'
+        );
+
+        if (!coberturaUe) {
+          pendentes.push(entidade);
+        }
+        continue;
       }
-      // Para contratos, a lógica do CSV é indireta via UE. 
-      // Se o CSV cobrir uma UE que pertence ao contrato, ele é considerado "atendido".
-      return true; // Contratos são validados estritamente pelo estado final do banco
-    });
+
+      if (entidade.tipo === 'CONTRATO') {
+        let coberturaContrato = false;
+
+        for (const usuario of usuarioList.filter(u => u.idOrigem === UsuarioOrigemConstants.UE && u.classeResultado !== 'danger')) {
+          const unidadeEscolar = await unidadeEscolarDao.buscarPorCodigo(usuario.origem_chave);
+          if (!unidadeEscolar) {
+            continue;
+          }
+
+          const contratosDaUe = await contratoDao.buscarContratosPorUnidadeEscolar(unidadeEscolar.id);
+          if (contratosDaUe.some(c => c.codigo === entidade.chave)) {
+            coberturaContrato = true;
+            break;
+          }
+        }
+
+        if (!coberturaContrato) {
+          pendentes.push(entidade);
+        }
+      }
+    }
 
     if (pendentes.length > 0) {
       await ctrl.finalizarTransaction(false, _transaction);
@@ -270,10 +311,12 @@ async function importar(req, res) {
       });
       resumoHtml += '</tbody></table>';
 
-      return await ctrl.gerarRetornoErro(res,
+      return await ctrl.gerarRetornoOk(res,
+        usuarioList,
         `Importação bloqueada: Existem entidades ativas sem usuários.<br><br>` +
         `<b>Itens faltando:</b>${resumoHtml}<br>` +
-        `Por favor, envie uma lista atualizada que contemple todos os registros ativos.`);
+        `Por favor, envie uma lista atualizada que contemple todos os registros ativos.`
+      );
     }
 
     usuarioList.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
