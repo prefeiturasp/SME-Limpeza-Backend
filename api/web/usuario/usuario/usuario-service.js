@@ -1,6 +1,7 @@
 const ctrl = require('rfr')('core/controller.js');
 const utils = require('rfr')('core/utils/utils.js');
 const csv = require('rfr')('core/utils/csv.js');
+const { extrairEmailsUnicos } = require('rfr')('core/utils/usuario-email-utils.js');
 const bcrypt = require('bcrypt');
 const emailService = require('rfr')('core/email');
 const configuracaoService = require('../../configuracao/configuracao-service');
@@ -12,11 +13,13 @@ const Dao = require('./usuario-dao');
 const UsuarioStatusDao = require('../usuario-status/usuario-status-dao');
 const UnidadeEscolarDao = require('../../unidade-escolar/unidade-escolar-dao');
 const DiretoriaRegionalDao = require('../../diretoria-regional/diretoria-regional-dao');
+const ContratoDao = require('../../contrato/contrato-dao');
 
 const dao = new Dao();
 const usuarioStatusDao = new UsuarioStatusDao();
 const unidadeEscolarDao = new UnidadeEscolarDao();
 const diretoriaRegionalDao = new DiretoriaRegionalDao();
+const contratoDao = new ContratoDao();
 exports.buscar = buscar;
 exports.tabela = tabela;
 exports.exportar = exportar;
@@ -124,6 +127,13 @@ async function importar(req, res) {
       return await ctrl.gerarRetornoErro(res, `A estrutura do arquivo é inválida.`);
     }
 
+    const emailsPlanilha = extrairEmailsUnicos(usuarioList);
+    const usuariosExistentesPlanilha = await dao.buscarDetalhesPorEmails(emailsPlanilha);
+    const usuarioExistenteMap = new Map((usuariosExistentesPlanilha || []).map(u => [String(u.email).trim().toLowerCase(), u]));
+
+    const usuariosComVinculo = await dao.buscarEmailsComVinculoContrato(emailsPlanilha);
+    const emailsComVinculoSet = new Set((usuariosComVinculo || []).map(u => String(u.email).trim().toLowerCase()));
+
     for (const usuario of usuarioList) {
 
       if (!usuario.nome || !usuario.email) {
@@ -131,6 +141,7 @@ async function importar(req, res) {
         usuario.mensagemResultado = `${!usuario.nome ? 'Nome' : 'E-mail'} ausente.`;
         continue;
       }
+      usuario.email = String(usuario.email).trim().toLowerCase();
       usuario.idOrigem = parseInt(usuario.id_origem);
       if (![
         UsuarioOrigemConstants.SME,
@@ -189,7 +200,7 @@ async function importar(req, res) {
         }
       }
 
-      const usuarioExistente = await dao.findDetalhadoByEmail(usuario.email, _transaction);
+      const usuarioExistente = usuarioExistenteMap.get(usuario.email);
 
       if (usuarioExistente) {
         usuario.classeResultado = 'info';
@@ -210,9 +221,7 @@ async function importar(req, res) {
         }
 
       } else {
-        //VERIFICA SE O USUÁRIO ESTÁ VINCULADO A UM CONTRATO ATIVO
-        const vinculo = await dao.verificaVinculoContrato(usuario.email);
-        if (vinculo.possuiVinculo) {
+        if (emailsComVinculoSet.has(usuario.email)) {
           usuario.classeResultado = 'danger';
           usuario.mensagemResultado = 'Usuário vinculado a um contrato ativo.';
           continue;
@@ -246,19 +255,27 @@ async function importar(req, res) {
       await dao.desativarNaoListados(emailsValidos, _transaction);
     }
 
-    // Validação de Cobertura Total
-    const entidadesVazias = await dao.buscarEntidadesSemUsuarios();
-    const pendentes = entidadesVazias.filter(entidade => {
-      if (entidade.tipo === 'DRE') {
-        return !usuarioList.some(u => u.id_origem == 2 && u.origem_chave === entidade.chave && u.classeResultado !== 'danger');
+    // Validação de cobertura a partir da lista importada (usuarioList):
+    // precisa existir pelo menos 1 usuário ativo com origem UE na lista importada
+    // para contemplar cada UE ativa vinculada a contrato ativo dentro de DRE ativa.
+    const entidadesAtivas = await dao.buscarEntidadesSemUsuarios();
+    const pendentes = [];
+
+    for (const entidade of entidadesAtivas) {
+      if (entidade.tipo !== 'UE') {
+        continue;
       }
-      if (entidade.tipo === 'UE') {
-        return !usuarioList.some(u => u.id_origem == 3 && u.origem_chave === entidade.chave && u.classeResultado !== 'danger');
+
+      const coberturaUe = usuarioList.some(u =>
+        u.idOrigem === UsuarioOrigemConstants.UE &&
+        u.origem_chave === entidade.chave &&
+        u.classeResultado !== 'danger'
+      );
+
+      if (!coberturaUe) {
+        pendentes.push(entidade);
       }
-      // Para contratos, a lógica do CSV é indireta via UE. 
-      // Se o CSV cobrir uma UE que pertence ao contrato, ele é considerado "atendido".
-      return true; // Contratos são validados estritamente pelo estado final do banco
-    });
+    }
 
     if (pendentes.length > 0) {
       await ctrl.finalizarTransaction(false, _transaction);
@@ -270,10 +287,12 @@ async function importar(req, res) {
       });
       resumoHtml += '</tbody></table>';
 
-      return await ctrl.gerarRetornoErro(res,
-        `Importação bloqueada: Existem entidades ativas sem usuários.<br><br>` +
+      return await ctrl.gerarRetornoOk(res,
+        usuarioList,
+        `Importação bloqueada: existem UEs ativas em contratos ativos de DRE ativa sem cobertura ativa na lista importada.<br><br>` +
         `<b>Itens faltando:</b>${resumoHtml}<br>` +
-        `Por favor, envie uma lista atualizada que contemple todos os registros ativos.`);
+        `Por favor, envie uma lista atualizada que contemple todos os registros ativos.`
+      );
     }
 
     usuarioList.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
