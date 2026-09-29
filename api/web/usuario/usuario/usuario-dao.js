@@ -88,6 +88,20 @@ class UsuarioDao extends GenericDao {
 
   }
 
+  buscarDetalhesPorEmails(emails) {
+    const sql = `
+      select u.id_usuario as id, u.nome, u.email, u.senha, u.id_origem_detalhe, u.id_usuario_status,
+        json_build_object('id', uc.id_usuario_cargo, 'descricao', uc.descricao) as usuario_cargo, us.flag_pode_logar,
+        json_build_object('id', uo.id_usuario_origem, 'descricao', uo.descricao, 'codigo', uo.codigo) as usuario_origem
+      from usuario u
+      join usuario_cargo uc on uc.id_usuario_cargo = u.id_usuario_cargo
+      join usuario_origem uo on uo.id_usuario_origem = uc.id_usuario_origem
+      join usuario_status us on us.id_usuario_status = u.id_usuario_status
+      where unaccent(lower(trim(u.email))) = any($1::text[])`;
+
+    return this.queryFindAll(sql, [emails]);
+  }
+
   findDetalhadoById(id) {
 
     const sql = `
@@ -337,55 +351,46 @@ class UsuarioDao extends GenericDao {
     return this.queryFindOne(sql, [email]);
   }
 
-  buscarEntidadesSemUsuarios(){
+  buscarEmailsComVinculoContrato(emails) {
     const sql = `
-      SELECT 'DRE' as tipo,
-             dr.descricao as chave,
-             dr.descricao as nome
-      FROM diretoria_regional dr
-      WHERE dr.flag_ativo = true
-        AND NOT EXISTS (
-          SELECT 1
-          FROM usuario u
-          JOIN usuario_cargo uc ON uc.id_usuario_cargo = u.id_usuario_cargo
-          JOIN usuario_origem uo ON uo.id_usuario_origem = uc.id_usuario_origem
-          WHERE u.id_origem_detalhe = dr.id_diretoria_regional
-            AND u.id_usuario_status = 1
-            AND uo.codigo = 'dre'
-        )
+      SELECT DISTINCT unaccent(lower(trim(u.email))) AS email
+      FROM usuario u
+      JOIN usuario_status us ON us.id_usuario_status = u.id_usuario_status
+      LEFT JOIN usuario_sme_contrato usc ON usc.id_usuario = u.id_usuario
+      LEFT JOIN unidade_escolar ue ON ue.id_unidade_escolar = u.id_origem_detalhe
+      LEFT JOIN contrato_unidade_escolar cue ON cue.id_unidade_escolar = ue.id_unidade_escolar
+      WHERE us.flag_pode_logar = true
+        AND (usc.id_contrato IS NOT NULL OR cue.id_contrato IS NOT NULL)
+        AND unaccent(lower(trim(u.email))) = ANY($1::text[])`;
 
-      UNION ALL
+    return this.queryFindAll(sql, [emails]);
+  }
 
-      SELECT 'UE' as tipo,
-             ue.codigo as chave,
-             ue.descricao as nome
+
+  buscarEntidadesSemUsuarios(){
+    const sql = `SELECT 
+          'UE' as tipo,
+          ue.id_unidade_escolar,
+          ue.codigo as chave, 
+          ue.descricao AS nome, 
+          'Ativo' AS status_usuario_filtrado,
+          COUNT(u.id_usuario) AS quantidade
       FROM unidade_escolar ue
-      WHERE ue.flag_ativo = true
-        AND NOT EXISTS (
-          SELECT 1
-          FROM usuario u
-          JOIN usuario_cargo uc ON uc.id_usuario_cargo = u.id_usuario_cargo
-          JOIN usuario_origem uo ON uo.id_usuario_origem = uc.id_usuario_origem
-          WHERE u.id_origem_detalhe = ue.id_unidade_escolar
-            AND u.id_usuario_status = 1
-            AND uo.codigo = 'ue'
-        )
-
-      UNION ALL
-
-      SELECT 'CONTRATO' as tipo,
-             c.codigo as chave,
-             c.descricao as nome
-      FROM contrato c
-      WHERE c.flag_ativo = true
-        AND NOT EXISTS (
-          SELECT 1
-          FROM usuario_sme_contrato usc
-          JOIN usuario u ON u.id_usuario = usc.id_usuario
-          WHERE usc.id_contrato = c.id_contrato
-            AND u.id_usuario_status = 1
-        )
-      ORDER BY tipo, nome`;
+      -- 1. Garante o vínculo com contratos ativos e vigentes na data de hoje
+      JOIN contrato_unidade_escolar cue ON cue.id_unidade_escolar = ue.id_unidade_escolar
+      JOIN contrato c ON c.id_contrato = cue.id_contrato
+      -- 2. Traz os usuários de forma opcional (LEFT JOIN) filtrando apenas os ativos na junção
+      LEFT JOIN usuario_prestador_unidade_escolar up ON up.id_unidade_escolar = ue.id_unidade_escolar
+      LEFT JOIN usuario u ON u.id_usuario = up.id_usuario AND u.id_usuario_status = 1 
+      WHERE ue.id_status_unidade_escolar = 1  -- Unidade Escolar ativa
+        AND c.flag_ativo = true               -- Contrato ativo
+        AND NOW() BETWEEN cue.data_inicial AND cue.data_final -- Contrato vigente hoje
+      GROUP BY 
+          tipo,
+          ue.id_unidade_escolar,
+          ue.codigo, 
+          ue.descricao
+      HAVING COUNT(u.id_usuario) < 1;`;
 
     return this.queryFindAll(sql);
   }
