@@ -82,7 +82,7 @@ class UsuarioDao extends GenericDao {
       join usuario_cargo uc on uc.id_usuario_cargo = u.id_usuario_cargo
       join usuario_origem uo on uo.id_usuario_origem = uc.id_usuario_origem
       join usuario_status us on us.id_usuario_status = u.id_usuario_status
-      where unaccent(lower(u.email)) ilike unaccent(lower(trim($1)))`;
+      where unaccent(lower(u.email)) = unaccent(lower(trim($1)))`;
 
     return this.queryFindOne(sql, [email], _transaction);
 
@@ -343,7 +343,7 @@ class UsuarioDao extends GenericDao {
         LEFT JOIN usuario_sme_contrato usc ON usc.id_usuario = u.id_usuario
         LEFT JOIN unidade_escolar ue ON ue.id_unidade_escolar = u.id_origem_detalhe
         LEFT JOIN contrato_unidade_escolar cue ON cue.id_unidade_escolar = ue.id_unidade_escolar
-        WHERE unaccent(lower(u.email)) ilike unaccent(lower(trim($1)))
+        WHERE unaccent(lower(u.email)) = unaccent(lower(trim($1)))
           AND us.flag_pode_logar = true
           AND (usc.id_contrato IS NOT NULL OR cue.id_contrato IS NOT NULL)
       ) AS "possuiVinculo"`;
